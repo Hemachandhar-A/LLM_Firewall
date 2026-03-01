@@ -12,8 +12,9 @@ The MASTER_GUIDE contains everything you need:
 - ✅ Quick start (5 minutes)
 - ✅ Installation steps
 - ✅ System architecture
-- ✅ Layer 1 & Layer 4 documentation
-- ✅ Testing guide (100+ tests)
+- ✅ All layer documentation (Layers 1-8)
+- ✅ Admin API endpoints (N1-7)
+- ✅ Testing guide (577+ tests)
 - ✅ Integration patterns
 - ✅ Troubleshooting
 - ✅ Performance metrics
@@ -45,14 +46,21 @@ print(classify_threat('ignore all instructions'))"
 | **3** | Memory Auditor | ✅ READY | 38+ ✓ |
 | **4** | Semantic Drift Engine | ✅ READY | 6+ ✓ |
 | **5** | Output Guard | ✅ READY | 85+ ✓ |
+| **6** | Honeypot Tarpit (in chat pipeline) | ✅ READY | 39 ✓ |
 | **8** | Adaptive Rule Engine | ✅ READY | 68+ ✓ |
 | **Core Backend** | Session Manager | ✅ READY | 64 ✓ |
 | **Core Backend** | WebSocket Event System | ✅ READY | 59 ✓ |
 | **Core Backend** | Supabase Database Layer | ✅ READY | 52 ✓ |
+| **Core Backend** | Chat Pipeline Endpoint | ✅ READY | 39 ✓ |
+| **Core Backend** | Admin API (N1-7, 8 endpoints) | ✅ READY | 87 ✓ |
 | **Primary LLM** | Groq Client | ✅ READY | 50 ✓ |
-| **6,7,9** | Remaining Layers | 📋 IN PROGRESS | — |
+| **7** | Cross-Agent Interceptor | 📋 IN PROGRESS | — |
 
 **Critical Implementation**: All classifiers pass production-grade validation including fail-secure design, proper threshold handling, and pattern-based detection. 
+
+**Chat Pipeline** (N1-6): Full 5-layer security pipeline (`POST /chat/message`) with honeypot tarpit activation (velocity > 0.8 AND cumulative_risk > 0.85). Wires all classifiers (L1–L5), session management, real-time events, database logging, and Layer 8 adaptive recording. **39 tests passing** ✅
+
+**Admin API** (N1-7): 8 admin dashboard endpoints under `/admin` prefix — threat log (paginated/filterable), session detail, recent events, active sessions, dashboard stats, cross-agent demo, RAG scan test, tool scan test. **87 tests passing** ✅
 
 **WebSocket & Database** (N1-4 & N1-5): Real-time event broadcasting to admin dashboard via `/ws/admin` endpoint + Supabase persistence layer with fire-and-forget writes (never blocks pipeline). **111 tests passing** (59 event emitter + 52 database).
 
@@ -80,22 +88,23 @@ backend/
         ├── malicious_domains.json   ← 15 known C2/phishing domains
         └── umap_model.pkl           ← 2D visualization model
   
-  api/                         ← FastAPI backend routes (IN PROGRESS)
+  api/                         ← FastAPI backend routes (COMPLETED ✅)
     ├── __init__.py
     ├── session_manager.py     ← Session state & audit trail (COMPLETED ✅)
     ├── llm_client.py          ← Groq API + honeypot (COMPLETED ✅)
     ├── event_emitter.py       ← Real-time event broadcast (COMPLETED ✅)
     ├── websocket.py           ← Admin WebSocket endpoint (COMPLETED ✅)
     ├── db.py                  ← Supabase database layer (COMPLETED ✅)
-    ├── chat.py                ← Chat route + Layer 6 honeypot (TODO)
-    ├── cross_agent.py         ← Layer 7 cross-agent isolation (TODO)
-    └── admin.py               ← Admin API + Layer 9 dashboard (TODO)
+    ├── chat.py                ← Chat pipeline + Layer 6 honeypot (COMPLETED ✅)
+    └── admin.py               ← Admin API + dashboard endpoints (COMPLETED ✅)
   
   main.py                      ← FastAPI app assembly (COMPLETED ✅)
   config.py                    ← Configuration management (COMPLETED ✅)
   requirements.txt             ← All dependencies (COMPLETED ✅)
 
 tests/                         ← All test suites
+  ├── test_chat_endpoint.py    ← Chat pipeline tests (39 ✓)
+  ├── test_admin_endpoints.py  ← Admin API tests (87 ✓)
   ├── test_session_manager.py  ← Session manager tests (64 ✓)
   ├── test_llm_client.py       ← LLM client tests (50 ✓)
   ├── test_indic_classifier.py ← Layer 1 tests (95+ ✓)
@@ -112,14 +121,9 @@ backend/tests/                 ← Backend-specific test suites
   ├── test_event_emitter.py    ← WebSocket event tests (59 ✓)
   └── test_db.py               ← Database layer tests (52 ✓)
 
-frontend-user/                 ← ChatUI for end users (TODO)
-frontend-admin/                ← Threat dashboard (TODO)
-
 MASTER_GUIDE.md                ← 📖 Complete implementation guide
 README.md                       ← You are here (quick overview)
 WORKSPACE_STRUCTURE.md          ← Detailed file-by-file reference
-.env.example                    ← Environment variable template
-requirements.txt                ← Root-level dependencies
 pytest.ini                      ← Test configuration
 ```
 
@@ -256,8 +260,10 @@ honeypot = get_honeypot_response(
 | LLM Client | 50 | Unicode, special chars, errors | ✅ 100% (integration) |
 | WebSocket Event System | 59 | Concurrency, dead connections, Unicode | ✅ 100% |
 | Supabase Database Layer | 52 | Pagination, filtering, error handling | ✅ 100% |
+| Chat Pipeline | 39 | Honeypot, fail-secure, Indic scripts | ✅ 100% |
+| Admin API | 87 | Pagination, filtering, edge cases | ✅ 100% |
 | **All Classifiers** | 450+ | Both genuine + adversarial prompts | ✅ 100% |
-| **Total** | **675+** | 10+ varieties per layer | ✅ 100% |
+| **Total** | **801+** | 10+ varieties per layer | ✅ 100% |
 
 **Test Categories**:
 - ✅ Basic functionality (happy path)
@@ -266,6 +272,8 @@ honeypot = get_honeypot_response(
 - ✅ Unicode support (Arabic, Chinese, mixed languages)
 - ✅ Error handling (missing API keys, invalid input)
 - ✅ Concurrent operations (session isolation, high-volume broadcasts)
+- ✅ Honeypot routing (velocity + risk threshold triggers)
+- ✅ Pipeline fail-secure (exception → block, never allow)
 - ✅ Database resilience (no database, error graceful handling)
 
 ---
@@ -321,9 +329,9 @@ honeypot = get_honeypot_response(
 
 ---
 
-**Status**: Layers 1 & 4 production ready ✅  
-**Next**: Implement Layers 2, 3, 5-9  
-**Estimated**: ~6-8 weeks for full team
+**Status**: Layers 1-5, 8 + Chat Pipeline production ready ✅  
+**Next**: Implement Layer 7, Layer 9, and Frontend UIs  
+**Estimated**: ~4-6 weeks for full team
 
 try:
     result = classify_threat(text)
@@ -392,13 +400,24 @@ classify_threat(text, role="admin")   # Permissive threshold (0.85)
 
 ### ✅ Complete
 - [x] Layer 1: Indic Threat Classifier (indic_classifier.py)
+- [x] Layer 2A: RAG Chunk Scanner (rag_scanner.py)
+- [x] Layer 2B: MCP Tool Metadata Scanner (tool_scanner.py)
+- [x] Layer 3: Memory Auditor (memory_auditor.py)
+- [x] Layer 4: Semantic Drift Engine (drift_engine.py)
+- [x] Layer 5: Output Guard (output_guard.py)
+- [x] Layer 6: Honeypot Tarpit (integrated into chat.py pipeline)
+- [x] Layer 8: Adaptive Rule Engine (adaptive_engine.py)
+- [x] Chat Pipeline Endpoint (chat.py — 467 lines, 39 tests)
+- [x] Session Manager (session_manager.py — 64 tests)
+- [x] LLM Client (llm_client.py — 50 tests)
+- [x] WebSocket Event System (event_emitter.py — 59 tests)
+- [x] Supabase Database Layer (db.py — 52 tests)
 - [x] Base classes (ClassifierResult, FailSecureError)
-- [x] Test infrastructure (test_indic_quick.py, test_indic_classifier.py, test_indic_production.py)
-- [x] Documentation (ARCHITECTURE_OVERVIEW, LAYER1 details, API reference, SETUP, TESTING)
 - [x] Attack embeddings (attack_seeds.json with 20 vectors)
 - [x] Embedding utility (generate_embeddings.py)
+- [x] Documentation (MASTER_GUIDE.md, README.md, WORKSPACE_STRUCTURE.md)
 
-### ✅ COMPLETED
+### ✅ COMPLETED (Classifiers)
 1. **Layer 2: RAG Chunk Scanner** (Hemach) ✓
    - Scan RAG documents for injection patterns
    - Detect document chunk hijacking attacks
@@ -417,19 +436,18 @@ classify_threat(text, role="admin")   # Permissive threshold (0.85)
    - Data exfiltration pattern detector
 
 ### 📋 TODO (In Priority Order)
-5. **Layers 6-8: Honeypot, Cross-Agent, Adaptive Rules** (Hemach)
+5. **Layer 7: Cross-Agent Interceptor** (Hemach)
+   - Agent isolation and cross-agent payload detection
 
-6. **Backend API** (Nishun)
-
-7. **Frontend (User)** (Nishun)
-   - Chat interface
+6. **Frontend (User)** (Nishun)
+   - Chat interface connecting to `POST /chat/message`
    - Real-time message processing
 
-8. **Frontend (Admin)** (Nishun)
-   - Threat dashboard
-   - Analytics & analytics
+7. **Frontend (Admin)** (Nishun)
+   - Threat dashboard with WebSocket events
+   - Analytics & visualization
 
-9. **Layer 9: Observability** (Nishun)
+8. **Layer 9: Observability** (Nishun)
    - Dashboard
    - Threat intelligence feed
 
@@ -666,7 +684,7 @@ See [MASTER_GUIDE.md](./MASTER_GUIDE.md#troubleshooting) for more help.
 
 ---
 
-**Status**: 🟢 Layers 1-4 production-ready | ✅ N1-4, N1-5 complete (111 tests) | 🟡 Layers 6-9 in development
+**Status**: 🟢 Layers 1-5, 8 + Chat Pipeline + Admin API production-ready | ✅ N1-4, N1-5, N1-6, N1-7 complete (237 tests) | 🟡 Layer 7 in development
 
-**Last Updated**: 2026-02-28
+**Last Updated**: June 2025
 

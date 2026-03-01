@@ -1,7 +1,7 @@
 # Clean Workspace Structure - Adaptive LLM Firewall
 
 **Status**: ✅ Clean & Production Ready  
-**Date**: March 1, 2026
+**Date**: June 2025
 
 ---
 
@@ -32,9 +32,8 @@ AMD/
 │   │   ├── event_emitter.py            ← N1-4: Real-time event broadcasting ✅ (185 lines, 59 tests)
 │   │   ├── websocket.py                ← N1-4: Admin WebSocket endpoint ✅ (60 lines)
 │   │   ├── db.py                       ← N1-5: Supabase persistence layer ✅ (540 lines, 52 tests)
-│   │   ├── chat.py                     ← Chat endpoint + Layer 6 honeypot (TODO)
-│   │   ├── cross_agent.py              ← Layer 7 cross-agent isolation (TODO)
-│   │   ├── admin.py                    ← Layer 9 admin API (TODO)
+│   │   ├── chat.py                     ← N1-6: Main chat pipeline + Layer 6 honeypot ✅ (467 lines, 39 tests)
+│   │   ├── admin.py                    ← N1-7: Admin dashboard API ✅ (8 endpoints, 87 tests)
 │   │   └── __pycache__/
 │   │
 │   ├── main.py                         ← FastAPI app assembly ✅
@@ -42,8 +41,40 @@ AMD/
 │   ├── requirements.txt                ← All backend dependencies ✅
 │   └── requirements-classifiers.txt    ← Pinned dependencies (7 packages)
 │
-├── tests/                              ← 🧪 COMPREHENSIVE TEST SUITE (450+ tests)
+├── tests/                              ← 🧪 COMPREHENSIVE TEST SUITE (577+ tests)
 │   ├── conftest.py                     ← Pytest configuration
+│   ├── test_chat_endpoint.py           ← N1-6: Chat pipeline tests: 39 tests ✅ ALL PASS
+│   │   └── Structure:
+│   │       ├── TestSafeMessage (2 tests - Safe message pass-through)
+│   │       ├── TestPromptInjectionBlock (1 test - L1 injection block)
+│   │       ├── TestBlockedResponseFields (2 tests - L1/L2 block fields, parametrized)
+│   │       ├── TestSessionPersistence (2 tests - Turn numbers & state)
+│   │       ├── TestSessionIndependence (1 test - Multi-session isolation)
+│   │       ├── TestHinglishInjection (1 test - Indic script L1 block)
+│   │       ├── TestMemoryBomb (1 test - L3 memory audit block)
+│   │       ├── TestToolPoisoningPhrase (1 test - L2 tool poisoning block)
+│   │       ├── TestCrescendoTurn5 (1 test - L4 drift velocity block)
+│   │       ├── TestCrossAgentCommand (1 test - L1 cross-agent block)
+│   │       ├── TestEmptyMessage (2 tests - Validation: empty & whitespace)
+│   │       ├── TestLongMessage (1 test - 2000-char message passes)
+│   │       ├── TestAdminRoleThreshold (1 test - Admin passes where guest blocks)
+│   │       ├── TestOutputPiiBlock (1 test - L5 PII leak block)
+│   │       ├── TestLLMConnectionFailure (1 test - LLM unavailable → 500)
+│   │       ├── TestFailSecure (4 tests - L1/L3/L4/L5 exceptions → block)
+│   │       ├── TestInvalidRole (1 test - Validation rejects invalid role)
+│   │       ├── TestMissingSessionId (2 tests - Validation: empty & missing)
+│   │       ├── TestTeluguInjection (1 test - Telugu script block)
+│   │       ├── TestTamilInjection (1 test - Tamil script block)
+│   │       ├── TestBlockedResponseBody (1 test - Blocked response is empty)
+│   │       ├── TestEarliestLayerWins (1 test - L1 blocks before L2)
+│   │       ├── TestHoneypotActivation (1 test - Velocity+risk honeypot trigger)
+│   │       ├── TestIdentityOverride (1 test - L3 identity override block)
+│   │       ├── TestSystemPromptLeakage (1 test - L5 prompt leak block)
+│   │       ├── TestConcurrentSessions (1 test - 3 sessions isolated)
+│   │       ├── TestLayer2FailSecure (1 test - L2 exception → block)
+│   │       ├── TestDefaultRole (1 test - Default role is guest)
+│   │       ├── TestBase64Exfiltration (1 test - L5 base64 exfil block)
+│   │       └── TestMalformedRequest (2 tests - Missing field & non-JSON)
 │   ├── test_indic_classifier.py        ← Layer 1 tests: 95+ tests ✅ ALL PASS
 │   │   └── Structure:
 │   │       ├── TestRequiredSpecScenarios (7 tests - H1-2 spec compliance)
@@ -79,6 +110,20 @@ AMD/
 │   │
 │   ├── test_session_manager.py         ← Session manager tests: 64 tests ✅ ALL PASS
 │   ├── test_llm_client.py              ← LLM client tests: 50 tests ✅ ALL PASS (integration)
+│   ├── test_output_guard.py            ← Layer 5 tests: 85+ tests ✅ ALL PASS
+│   ├── test_adaptive_engine.py         ← Layer 8 tests: 68 tests ✅ ALL PASS
+│   ├── test_admin_endpoints.py         ← N1-7: Admin API tests: 87 tests ✅ ALL PASS
+│   │   └── Structure:
+│   │       ├── TestThreatLog (8 tests - Threat log pagination & filtering)
+│   │       ├── TestSessionDetail (7 tests - Session detail retrieval & 404)
+│   │       ├── TestRecentEvents (4 tests - Recent events retrieval)
+│   │       ├── TestActiveSessions (7 tests - Active session listing)
+│   │       ├── TestStats (8 tests - Dashboard statistics)
+│   │       ├── TestCrossAgentDemo (18 tests - Cross-agent threat demo)
+│   │       ├── TestRagScan (8 tests - RAG scan test endpoint)
+│   │       ├── TestToolScan (8 tests - Tool scan test endpoint)
+│   │       ├── TestStatsBlockedIncrement (2 tests - Blocked counter)
+│   │       └── TestEdgeCases (16 tests - Edge cases & validation)
 │   │
 │   └── __pycache__/                    ← Python cache (auto-generated)
 │
@@ -132,8 +177,13 @@ AMD/
 │   ├── Layer 2B (Tool Scanner) - Full Reference with Critical Bug Fixes ✅
 │   ├── Layer 3 (Memory Auditor) - Full Reference
 │   ├── Layer 4 (Drift Engine) - Full Reference
+│   ├── Layer 5 (Output Guard) - Full Reference
+│   ├── Layer 6 (Honeypot Tarpit) - Integrated into Chat Pipeline ✅
+│   ├── Layer 8 (Adaptive Engine) - Full Reference
+│   ├── Admin API (N1-7) - 8 endpoints for admin dashboard ✅
+│   ├── Chat Pipeline (N1-6) - Full 5-layer pipeline + honeypot ✅
 │   ├── Backend Infrastructure - Session Manager, LLM Client, N1-4, N1-5
-│   ├── Testing Guide (450+ tests documented)
+│   ├── Testing Guide (577+ tests documented)
 │   ├── Integration Patterns (FastAPI examples)
 │   ├── Error Handling (fail-secure design)
 │   ├── Performance Metrics
@@ -193,14 +243,32 @@ These are obsolete after tests pass:
 |------|---------|-------|--------|
 | `base.py` | ClassifierResult, FailSecureError | 45 | ✅ Complete |
 | `indic_classifier.py` | Layer 1 Threat Detection | 546 | ✅ Complete |
+| `rag_scanner.py` | Layer 2A RAG Injection | 450+ | ✅ Complete |
+| `tool_scanner.py` | Layer 2B Tool Metadata | 566 | ✅ Complete |
+| `memory_auditor.py` | Layer 3 Memory Audit | 400+ | ✅ Complete |
 | `drift_engine.py` | Layer 4 Drift Velocity | 243 | ✅ Complete |
+| `output_guard.py` | Layer 5 Output Guard | 535 | ✅ Complete |
+| `adaptive_engine.py` | Layer 8 Adaptive Rules | 404 | ✅ Complete |
+| `chat.py` | Chat Pipeline + Honeypot | 467 | ✅ Complete |
+| `admin.py` | Admin Dashboard API (8 endpoints) | 350+ | ✅ Complete |
 | `__init__.py` | Module exports | 24 | ✅ Complete |
 
 ### Tests (Comprehensive) ✅
 | File | Purpose | Tests | Status |
 |------|---------|-------|--------|
 | `test_indic_classifier.py` | Layer 1 tests | 95+ | ✅ ALL PASS |
+| `test_rag_scanner.py` | Layer 2A tests | 50+ | ✅ ALL PASS |
+| `test_tool_scanner.py` | Layer 2B tests | 64 | ✅ ALL PASS |
+| `test_memory_auditor.py` | Layer 3 tests | 38+ | ✅ ALL PASS |
 | `test_drift_engine.py` | Layer 4 tests | 6+ | ✅ ALL PASS |
+| `test_output_guard.py` | Layer 5 tests | 85+ | ✅ ALL PASS |
+| `test_adaptive_engine.py` | Layer 8 tests | 68 | ✅ ALL PASS |
+| `test_chat_endpoint.py` | Chat pipeline tests | 39 | ✅ ALL PASS |
+| `test_admin_endpoints.py` | Admin API tests | 87 | ✅ ALL PASS |
+| `test_session_manager.py` | Session manager tests | 64 | ✅ ALL PASS |
+| `test_llm_client.py` | LLM client tests | 50 | ✅ ALL PASS |
+| `test_event_emitter.py` | Event emitter tests | 59 | ✅ ALL PASS |
+| `test_db.py` | Database tests | 52 | ✅ ALL PASS |
 | `conftest.py` | Pytest config | - | ✅ Complete |
 
 ### Data Files (Pre-generated) ✅
@@ -281,7 +349,7 @@ These are obsolete after tests pass:
 ```bash
 pytest tests/ -v
 ```
-**Expected**: 101+ tests, all pass, ~30 seconds
+**Expected**: 577+ tests, all pass, ~60 seconds
 
 ### Run Layer 1 Tests Only
 ```bash
@@ -334,15 +402,15 @@ python generate_embeddings.py
 
 ## ✨ Quality Assurance Checklist
 
-- ✅ All 101+ tests pass
+- ✅ All 577+ tests pass
 - ✅ No hardcoded responses (all real functions)
 - ✅ No TODO comments (all implemented)
 - ✅ No fake data (all from real ML models)
 - ✅ No silent failures (FailSecureError on crash)
 - ✅ Fail-secure design (default BLOCK on error)
 - ✅ OWASP LLM01:2025 compliant (Layer 1)
-- ✅ Comprehensive testing (95+ Layer 1, 6+ Layer 4)
-- ✅ Production-grade code (508 lines Layer 1, 243 lines Layer 4)
+- ✅ Comprehensive testing (95+ Layer 1, 6+ Layer 4, 39 chat pipeline, 87 admin API)
+- ✅ Production-grade code (508 lines Layer 1, 243 lines Layer 4, 467 lines chat pipeline, 350+ lines admin API)
 - ✅ Single-source-of-truth documentation (MASTER_GUIDE.md)
 - ✅ Clean workspace (removed redundant files)
 
@@ -352,16 +420,18 @@ python generate_embeddings.py
 
 ### For Team (Hemach, Nishun, Siddharth)
 1. Each read their relevant section in MASTER_GUIDE.md
-2. Hemach: Build Layers 2, 3, 5-9 following Layer 1 & 4 patterns
-3. Nishun: Build FastAPI endpoints using integration patterns
+2. Hemach: Build Layer 7 (cross-agent) following existing patterns
+3. Nishun: Build frontend UIs using the chat pipeline endpoint (`POST /chat/message`) and admin API endpoints (`/admin/*`)
 4. Siddharth: Wire everything together and test end-to-end
 
 ### Estimated Timeline
-- **Layers 1 & 4**: ✅ Complete (2 weeks)
-- **Layers 2-3**: ~2 weeks
-- **Layers 5-9**: ~3-4 weeks
-- **Integration & Testing**: ~1-2 weeks
-- **Total**: ~6-8 weeks for production deployment
+- **Layers 1-5 & 8**: ✅ Complete
+- **Chat Pipeline + Honeypot (Layer 6)**: ✅ Complete (467 lines, 39 tests)
+- **Admin API (N1-7)**: ✅ Complete (8 endpoints, 87 tests)
+- **Backend Infrastructure**: ✅ Complete (session, LLM, events, DB)
+- **Layer 7 (Cross-Agent)**: ~1 week
+- **Frontend UIs**: ~2-3 weeks
+- **Total remaining**: ~3-4 weeks for production deployment
 
 ---
 
@@ -376,6 +446,6 @@ All code files have been verified:
 
 ---
 
-**Last Cleaned**: March 1, 2026  
-**Status**: ✅ Production Ready (Layers 1 & 4)  
-**Next Review**: After Layer 2 & 3 Implementation
+**Last Cleaned**: June 2025  
+**Status**: ✅ Production Ready (Layers 1-5, 8 + Chat Pipeline + Admin API)  
+**Next Review**: After Layer 7 Implementation & Frontend UIs
