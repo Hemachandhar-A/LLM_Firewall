@@ -31,10 +31,10 @@ export default function AdminLayout({ wsConnected }) {
                 background: 'linear-gradient(135deg, #c2410c, #ea580c)',
               }}
             >
-              N
+              A
             </div>
             <div className="flex flex-col">
-              <span className="text-white font-bold text-sm tracking-wide">NISHUN</span>
+              <span className="text-white font-bold text-sm tracking-wide">AgentShield</span>
               <span style={{ color: '#9ca3af', fontSize: '12px' }}>AI Security Admin</span>
             </div>
           </div>

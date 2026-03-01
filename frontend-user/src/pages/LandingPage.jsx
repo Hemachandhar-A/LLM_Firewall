@@ -24,7 +24,7 @@ function Navbar() {
           className="text-white font-semibold tracking-wider"
           style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: '0.05em' }}
         >
-          NISHUN
+          AgentShield
         </span>
       </div>
       <div className="flex items-center gap-8">
@@ -85,12 +85,12 @@ function TerminalBlock() {
         <div className="w-3 h-3 rounded-full" style={{ background: '#eab308' }} />
         <div className="w-3 h-3 rounded-full" style={{ background: '#22c55e' }} />
         <span className="ml-auto text-xs" style={{ fontFamily: "'JetBrains Mono'", color: '#6b7280' }}>
-          nishun-core v2.4.8 — root@nishun-srv-01
+          agentshield-core v2.4.8 — root@agentshield-srv-01
         </span>
       </div>
       {/* Terminal content */}
       <div className="p-5" style={{ fontFamily: "'JetBrains Mono'", fontSize: '13px', lineHeight: '1.8' }}>
-        <div style={{ color: '#ef4444' }}>→ Initializing NISHUN Enterprise Security Core...</div>
+        <div style={{ color: '#ef4444' }}>→ Initializing AgentShield Enterprise Security Core...</div>
         <div className="flex items-center gap-2">
           <span style={{ color: '#22c55e' }}>✓</span>
           <span style={{ color: '#22c55e' }}>Memory Integrity Guard:</span>
@@ -198,7 +198,7 @@ export default function LandingPage() {
           className="mt-6 max-w-xl mx-auto"
           style={{ fontSize: '16px', color: '#9ca3af', lineHeight: 1.7 }}
         >
-          Protect your LLMs and agentic workflows with NISHUN. The first enterprise-grade security
+          Protect your LLMs and agentic workflows with AgentShield. The first enterprise-grade security
           platform designed to safeguard memory integrity and detect threats in real-time.
         </p>
 
@@ -299,7 +299,7 @@ export default function LandingPage() {
       >
         <div className="flex items-center gap-2">
           <ShieldIcon size={16} />
-          <span className="text-white font-semibold text-sm tracking-wide">NISHUN</span>
+          <span className="text-white font-semibold text-sm tracking-wide">AgentShield</span>
         </div>
         <span style={{ color: '#6b7280', fontSize: '12px' }}>Built for AMD Slingshot 2026</span>
         <div className="flex items-center gap-4">

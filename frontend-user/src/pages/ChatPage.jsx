@@ -128,7 +128,7 @@ function AssistantBubble({ message }) {
           {message.content}
         </div>
         <span className="mt-1.5" style={{ color: '#9ca3af', fontSize: '11px' }}>
-          NISHUN AI • {formatTime(message.timestamp)}
+          AgentShield AI • {formatTime(message.timestamp)}
         </span>
       </div>
     </div>
@@ -186,7 +186,7 @@ function BlockedBubble({ message }) {
           </div>
         </div>
         <span className="mt-1.5" style={{ color: '#9ca3af', fontSize: '11px' }}>
-          NISHUN AI • {formatTime(message.timestamp)}
+          AgentShield AI • {formatTime(message.timestamp)}
         </span>
       </div>
     </div>
@@ -351,7 +351,7 @@ export default function ChatPage() {
           <ShieldIcon size={24} />
           <div className="flex flex-col">
             <span className="text-white font-bold text-base" style={{ fontFamily: "'DM Sans'" }}>
-              NISHUN
+              AgentShield
             </span>
             <span style={{ color: '#9ca3af', fontSize: '12px' }}>Enterprise AI Security</span>
           </div>

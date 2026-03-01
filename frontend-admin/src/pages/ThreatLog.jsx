@@ -181,7 +181,7 @@ function ExpandedRow({ event }) {
                       {isUser ? 'U' : '🛡'}
                     </div>
                     <span className="font-semibold text-sm" style={{ color: isUser ? '#fff' : '#ef4444' }}>
-                      {isUser ? 'User' : 'NISHUN Guard'}
+                      {isUser ? 'User' : 'AgentShield Guard'}
                     </span>
                     <span style={{ fontFamily: "'JetBrains Mono'", fontSize: '11px', color: '#9ca3af' }}>
                       {turn.timestamp || ''}
