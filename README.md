@@ -47,10 +47,16 @@ print(classify_threat('ignore all instructions'))"
 | **5** | Output Guard | ✅ READY | 85+ ✓ |
 | **8** | Adaptive Rule Engine | ✅ READY | 68+ ✓ |
 | **Core Backend** | Session Manager | ✅ READY | 64 ✓ |
+| **Core Backend** | WebSocket Event System | ✅ READY | 59 ✓ |
+| **Core Backend** | Supabase Database Layer | ✅ READY | 52 ✓ |
 | **Primary LLM** | Groq Client | ✅ READY | 50 ✓ |
 | **6,7,9** | Remaining Layers | 📋 IN PROGRESS | — |
 
-**Critical Implementation**: All classifiers pass production-grade validation including fail-secure design, proper threshold handling, and pattern-based detection. See [MASTER_GUIDE.md](./MASTER_GUIDE.md) for complete details.
+**Critical Implementation**: All classifiers pass production-grade validation including fail-secure design, proper threshold handling, and pattern-based detection. 
+
+**WebSocket & Database** (N1-4 & N1-5): Real-time event broadcasting to admin dashboard via `/ws/admin` endpoint + Supabase persistence layer with fire-and-forget writes (never blocks pipeline). **111 tests passing** (59 event emitter + 52 database).
+
+See [MASTER_GUIDE.md](./MASTER_GUIDE.md) for complete details.
 
 ---
 
@@ -78,6 +84,9 @@ backend/
     ├── __init__.py
     ├── session_manager.py     ← Session state & audit trail (COMPLETED ✅)
     ├── llm_client.py          ← Groq API + honeypot (COMPLETED ✅)
+    ├── event_emitter.py       ← Real-time event broadcast (COMPLETED ✅)
+    ├── websocket.py           ← Admin WebSocket endpoint (COMPLETED ✅)
+    ├── db.py                  ← Supabase database layer (COMPLETED ✅)
     ├── chat.py                ← Chat route + Layer 6 honeypot (TODO)
     ├── cross_agent.py         ← Layer 7 cross-agent isolation (TODO)
     └── admin.py               ← Admin API + Layer 9 dashboard (TODO)
@@ -98,6 +107,10 @@ tests/                         ← All test suites
   ├── test_adaptive_engine.py  ← Layer 8 tests (68 ✓)
   ├── conftest.py              ← Shared test config
   └── pytest.ini               ← Pytest configuration
+
+backend/tests/                 ← Backend-specific test suites
+  ├── test_event_emitter.py    ← WebSocket event tests (59 ✓)
+  └── test_db.py               ← Database layer tests (52 ✓)
 
 frontend-user/                 ← ChatUI for end users (TODO)
 frontend-admin/                ← Threat dashboard (TODO)
@@ -212,6 +225,27 @@ honeypot = get_honeypot_response(
   - `.env` file loading
   - API key management (Groq, Supabase)
 
+#### 5. WebSocket Event System (`backend/api/event_emitter.py`, `backend/api/websocket.py`)
+- **Purpose**: Real-time threat intelligence broadcast to admin dashboard
+- **59 comprehensive tests** — all passing ✅
+- **Key Features**:
+  - Global admin WebSocket connection registry
+  - Async concurrent broadcast via `asyncio.gather()`
+  - Dead connection removal (silent, non-blocking)
+  - Unified event schema with UUID, timestamp, threat_score, OWASP tags
+  - Never blocks the security pipeline
+  - Admin endpoint: `/ws/admin`
+
+#### 6. Supabase Database Layer (`backend/api/db.py`)
+- **Purpose**: Persistent logging of security events, sessions, memory snapshots, honeypot telemetry
+- **52 comprehensive tests** — all passing ✅
+- **Key Features**:
+  - Fire-and-forget writes (failures logged, never raised)
+  - Async operations via `asyncio.to_thread()` (non-blocking)
+  - SQL schema provided for 4 tables: sessions, events, memory_snapshots, honeypot_sessions
+  - Graceful degradation when database unavailable
+  - Filtering and pagination for threat log queries
+
 ---
 
 ## 🧪 Test Coverage
@@ -219,9 +253,11 @@ honeypot = get_honeypot_response(
 | Component | Tests | Edge Cases | Pass Rate |
 |-----------|-------|-----------|-----------|
 | Session Manager | 64 | 50+ edge cases per function | ✅ 100% |
-| LLM Client | 50 | Unicode, Unicode, special chars, errors | ✅ 100% (integration) |
+| LLM Client | 50 | Unicode, special chars, errors | ✅ 100% (integration) |
+| WebSocket Event System | 59 | Concurrency, dead connections, Unicode | ✅ 100% |
+| Supabase Database Layer | 52 | Pagination, filtering, error handling | ✅ 100% |
 | **All Classifiers** | 450+ | Both genuine + adversarial prompts | ✅ 100% |
-| **Total** | **564+** | 10+ varieties per layer | ✅ 100% |
+| **Total** | **675+** | 10+ varieties per layer | ✅ 100% |
 
 **Test Categories**:
 - ✅ Basic functionality (happy path)
@@ -229,7 +265,8 @@ honeypot = get_honeypot_response(
 - ✅ Adversarial prompts (injection, jailbreak, social engineering)
 - ✅ Unicode support (Arabic, Chinese, mixed languages)
 - ✅ Error handling (missing API keys, invalid input)
-- ✅ Concurrent operations (session isolation)
+- ✅ Concurrent operations (session isolation, high-volume broadcasts)
+- ✅ Database resilience (no database, error graceful handling)
 
 ---
 
@@ -450,6 +487,127 @@ source .venv/bin/activate  # Linux/macOS
 
 ---
 
+## 🗄️ Setting Up Supabase (Database Layer - N1-5)
+
+The Supabase database layer persists all security events and session metadata. No tables are auto-created by Python code—you must run the SQL schema manually.
+
+### Prerequisites
+- Create a free Supabase project at https://supabase.com
+- Grab `SUPABASE_URL` and `SUPABASE_ANON_KEY` from Settings → API
+- Add to `.env`:
+  ```
+  SUPABASE_URL=https://your-project.supabase.co
+  SUPABASE_ANON_KEY=your-anon-key-here
+  ```
+
+### Create Tables (Run in Supabase SQL Editor)
+
+Go to **SQL Editor** → **New Query** → paste this and click **RUN**:
+
+```sql
+-- sessions: Track conversation state across turns
+CREATE TABLE sessions (
+    session_id TEXT PRIMARY KEY,
+    role TEXT NOT NULL CHECK (role IN ('guest', 'user', 'admin')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    ended_at TIMESTAMPTZ,
+    total_turns INTEGER DEFAULT 0,
+    final_risk_score FLOAT DEFAULT 0.0,
+    is_honeypot BOOLEAN DEFAULT FALSE
+);
+
+-- events: Real-time security events from all 9 layers
+CREATE TABLE events (
+    event_id TEXT PRIMARY KEY,
+    session_id TEXT REFERENCES sessions(session_id),
+    layer INTEGER NOT NULL CHECK (layer >= 0 AND layer <= 9),
+    action TEXT NOT NULL CHECK (action IN ('PASSED', 'BLOCKED', 'QUARANTINED', 'HONEYPOT', 'FLAGGED', 'SYSTEM')),
+    threat_score FLOAT CHECK (threat_score >= 0.0 AND threat_score <= 1.0),
+    reason TEXT,
+    owasp_tag TEXT,
+    turn_number INTEGER,
+    x_coord FLOAT DEFAULT 0.0,
+    y_coord FLOAT DEFAULT 0.0,
+    metadata JSONB,
+    timestamp TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- memory_snapshots: Baseline + auditing of conversation memory
+CREATE TABLE memory_snapshots (
+    id SERIAL PRIMARY KEY,
+    session_id TEXT REFERENCES sessions(session_id),
+    snapshot_hash TEXT NOT NULL,
+    content_length INTEGER,
+    quarantined BOOLEAN DEFAULT FALSE,
+    quarantine_reason TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- honeypot_sessions: Tarpit interactions with detected attackers
+CREATE TABLE honeypot_sessions (
+    session_id TEXT PRIMARY KEY,
+    started_at TIMESTAMPTZ DEFAULT NOW(),
+    messages JSONB DEFAULT '[]',
+    attack_type TEXT,
+    total_messages INTEGER DEFAULT 0
+);
+
+-- Create indexes for common queries
+CREATE INDEX idx_events_session ON events(session_id);
+CREATE INDEX idx_events_layer ON events(layer);
+CREATE INDEX idx_events_action ON events(action);
+CREATE INDEX idx_events_timestamp ON events(timestamp DESC);
+```
+
+Once tables exist, all `db.log_*()` calls will persist events automatically (fire-and-forget, non-blocking).
+
+### Verify Database Connection
+```bash
+pytest backend/tests/test_db.py -v  # Should pass all 52 tests
+```
+
+---
+
+## 🌐 WebSocket Admin Dashboard (N1-4)
+
+Real-time security event streaming to admin clients.
+
+### How It Works
+1. Admin client connects to `ws://localhost:8000/ws/admin`
+2. Whenever a security layer detects activity, event is broadcast to all connected admins
+3. Each admin sees: layer, action, threat_score, reason, timestamp
+
+### Connect Admin Client (Python)
+```python
+import asyncio
+import websockets
+import json
+
+async def listen_events():
+    async with websockets.connect("ws://localhost:8000/ws/admin") as ws:
+        while True:
+            event = await ws.recv()
+            event_dict = json.loads(event)
+            print(f"[Layer {event_dict['layer']}] {event_dict['action']}: {event_dict['reason']}")
+
+asyncio.run(listen_events())
+```
+
+### Test WebSocket System
+```bash
+pytest backend/tests/test_event_emitter.py -v  # 59 tests
+```
+
+Features tested:
+- ✅ Multiple admin clients receive same event simultaneously
+- ✅ Dead connections removed cleanly (don't block pipeline)
+- ✅ All threat layers can emit events (0-9)
+- ✅ All action types broadcast (PASSED, BLOCKED, QUARANTINED, HONEYPOT, FLAGGED, SYSTEM)
+- ✅ Concurrent broadcasts (50+ simultaneous events)
+- ✅ Unicode support in event data
+
+---
+
 ## Troubleshooting
 
 ### "ModuleNotFoundError: No module named 'sentence_transformers'"
@@ -474,7 +632,17 @@ export CUDA_VISIBLE_DEVICES=""  # Use CPU only
 pytest tests/ -v
 ```
 
-See [SETUP_GUIDE.md](./SETUP_GUIDE.md#troubleshooting) for more troubleshooting.
+### Supabase not persisting events?
+1. Verify `.env` has correct `SUPABASE_URL` and `SUPABASE_ANON_KEY`
+2. Check that tables were created (run SQL schema in Supabase SQL Editor)
+3. Events are logged asynchronously—check browser console/server logs for errors
+
+### WebSocket connection refused (ws://localhost:8000/ws/admin)?
+1. Verify FastAPI backend is running: `python -m uvicorn backend.main:app --reload`
+2. Check that `/ws/admin` endpoint exists in `backend/api/websocket.py`
+3. Admin must connect to same host/port as running server
+
+See [MASTER_GUIDE.md](./MASTER_GUIDE.md#troubleshooting) for more help.
 
 ---
 
@@ -485,20 +653,20 @@ See [SETUP_GUIDE.md](./SETUP_GUIDE.md#troubleshooting) for more troubleshooting.
 - **HuggingFace**: https://huggingface.co/
 - **Groq API**: https://console.groq.com/docs
 - **FastAPI**: https://fastapi.tiangolo.com/
+- **Supabase**: https://supabase.com/docs
+- **WebSockets**: https://fastapi.tiangolo.com/advanced/websockets/
 
 ---
 
 ## Questions?
 
 📖 See the documentation:
-- [ARCHITECTURE_OVERVIEW.md](./ARCHITECTURE_OVERVIEW.md) — System design
-- [LAYER1_INDIC_CLASSIFIER.md](./LAYER1_INDIC_CLASSIFIER.md) — Layer 1 details & examples
-- [API_REFERENCE.md](./API_REFERENCE.md) — Function signatures
-- [SETUP_GUIDE.md](./SETUP_GUIDE.md) — Installation & configuration
-- [TESTING.md](./TESTING.md) — How to test
+- [MASTER_GUIDE.md](./MASTER_GUIDE.md) — Complete reference (installation, setup, testing, integration)
+- [WORKSPACE_STRUCTURE.md](./WORKSPACE_STRUCTURE.md) — File-by-file reference
 
 ---
 
-**Status**: 🟢 Layer 1 production-ready | 🟡 Layers 2-9 in development
+**Status**: 🟢 Layers 1-4 production-ready | ✅ N1-4, N1-5 complete (111 tests) | 🟡 Layers 6-9 in development
 
 **Last Updated**: 2026-02-28
+

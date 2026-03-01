@@ -1962,6 +1962,189 @@ except ValueError as e:
 
 ---
 
+### N1-4: WebSocket Event System — `backend/api/event_emitter.py` & `backend/api/websocket.py`
+**Purpose**: Real-time threat intelligence broadcast to admin dashboard + ingestion by monitoring systems.
+
+#### Key Functions
+```python
+def emit_event(session_id: str, layer: int, action: str, threat_score: float,
+               reason: str, owasp_tag: str, turn_number: int,
+               x_coord: float = 0.0, y_coord: float = 0.0, 
+               metadata: dict = None) -> dict:
+    """
+    Broadcast security event to all connected admin WebSocket clients.
+    
+    Event schema (unified across system):
+    {
+        "event_id": "UUID v4",
+        "timestamp": "ISO8601 UTC",
+        "session_id": str,
+        "layer": int (0-9),
+        "action": "PASSED|BLOCKED|QUARANTINED|HONEYPOT|FLAGGED|SYSTEM",
+        "threat_score": float (0.0-1.0),
+        "reason": str,
+        "owasp_tag": str,
+        "turn_number": int,
+        "x_coord": float (UMAP),
+        "y_coord": float (UMAP),
+        "metadata": dict
+    }
+    
+    Design:
+    - Fire-and-forget (no return value blocking)
+    - Dead connections removed silently
+    - Async broadcast via asyncio.gather() to all admins
+    - Never raises exceptions
+    """
+
+def register_admin_connection(websocket: WebSocket) -> None:
+    """Register admin client for real-time event stream."""
+
+def unregister_admin_connection(websocket: WebSocket) -> None:
+    """Unregister admin client (called on disconnect)."""
+
+def get_connected_admin_count() -> int:
+    """Get current number of connected admin clients."""
+```
+
+#### WebSocket Endpoint
+```python
+@router.websocket("/ws/admin")
+async def admin_websocket_endpoint(websocket: WebSocket):
+    """
+    Admin dashboard WebSocket endpoint.
+    
+    Usage:
+    - Admin connects: ws://localhost:8000/ws/admin
+    - Receives events as JSON: {"event_id": "...", "layer": 1, ...}
+    - Connection closes cleanly on disconnect or server shutdown
+    """
+```
+
+#### Testing
+- **59 tests** covering:
+  - Event schema validation (UUID format, ISO8601 timestamp)
+  - All action types (PASSED, BLOCKED, QUARANTINED, HONEYPOT, FLAGGED, SYSTEM)
+  - All layers 0-9
+  - Threat score validation (0.0-1.0 range)
+  - Input validation (empty/None values, type checking)
+  - WebSocket integration (single/multiple clients, dead connection removal)
+  - Unicode support (in reasons, session_id, metadata)
+  - Concurrent broadcasts (10-50 simultaneous events)
+
+---
+
+### N1-5: Supabase Database Layer — `backend/api/db.py`
+**Purpose**: Persistent logging of all security events, sessions, memory snapshots, and honeypot telemetry.
+
+#### Database Functions (All Async, Fire-and-Forget)
+
+**Write Operations** (never raise, never block):
+```python
+async def log_event(event: dict) -> None:
+    """Insert event into events table. Validates schema, logs errors."""
+
+async def log_session_start(session_id: str, role: str) -> None:
+    """Create session record. Validates role (guest/user/admin)."""
+
+async def log_session_end(session_id: str, total_turns: int, 
+                          final_risk_score: float, is_honeypot: bool) -> None:
+    """Update session with end state. Validates risk score (0.0-1.0)."""
+
+async def log_memory_snapshot(session_id: str, content_hash: str, 
+                              content_length: int, quarantined: bool, 
+                              quarantine_reason: Optional[str]) -> None:
+    """Log memory state with SHA-256 hash for Layer 3 integrity checking."""
+
+async def log_honeypot_message(session_id: str, role: str, content: str) -> None:
+    """Append message to honeypot session history in JSONB."""
+```
+
+**Read Operations** (graceful degradation):
+```python
+async def get_threat_log(action: str = None, layer: int = None, 
+                        owasp_tag: str = None, page: int = 1, 
+                        page_size: int = 20) -> dict:
+    """
+    Query threat events with filtering and pagination.
+    
+    Returns: {"total": int, "page": int, "page_size": int, "events": list}
+    - page_size capped at 100
+    - invalid page defaults to 1
+    """
+
+async def get_session_detail(session_id: str) -> dict:
+    """
+    Get full session record + events + memory snapshots.
+    
+    Returns: {"session": {...}, "events": [...], "memory_snapshots": [...]}
+    """
+
+async def get_recent_events(limit: int = 20) -> list:
+    """Get most recent N events (limit capped at 100)."""
+```
+
+#### Required SQL Schema (Run in Supabase SQL Editor)
+```sql
+CREATE TABLE sessions (
+    session_id TEXT PRIMARY KEY,
+    role TEXT NOT NULL CHECK (role IN ('guest', 'user', 'admin')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    ended_at TIMESTAMPTZ,
+    total_turns INTEGER DEFAULT 0,
+    final_risk_score FLOAT DEFAULT 0.0,
+    is_honeypot BOOLEAN DEFAULT FALSE
+);
+
+CREATE TABLE events (
+    event_id TEXT PRIMARY KEY,
+    session_id TEXT REFERENCES sessions(session_id),
+    layer INTEGER NOT NULL CHECK (layer >= 0 AND layer <= 9),
+    action TEXT NOT NULL CHECK (action IN ('PASSED', 'BLOCKED', 'QUARANTINED', 'HONEYPOT', 'FLAGGED', 'SYSTEM')),
+    threat_score FLOAT CHECK (threat_score >= 0.0 AND threat_score <= 1.0),
+    reason TEXT,
+    owasp_tag TEXT,
+    turn_number INTEGER,
+    x_coord FLOAT DEFAULT 0.0,
+    y_coord FLOAT DEFAULT 0.0,
+    metadata JSONB,
+    timestamp TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE memory_snapshots (
+    id SERIAL PRIMARY KEY,
+    session_id TEXT REFERENCES sessions(session_id),
+    snapshot_hash TEXT NOT NULL,
+    content_length INTEGER,
+    quarantined BOOLEAN DEFAULT FALSE,
+    quarantine_reason TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE honeypot_sessions (
+    session_id TEXT PRIMARY KEY,
+    started_at TIMESTAMPTZ DEFAULT NOW(),
+    messages JSONB DEFAULT '[]',
+    attack_type TEXT,
+    total_messages INTEGER DEFAULT 0
+);
+
+CREATE INDEX idx_events_session ON events(session_id);
+CREATE INDEX idx_events_layer ON events(layer);
+CREATE INDEX idx_events_action ON events(action);
+CREATE INDEX idx_events_timestamp ON events(timestamp DESC);
+```
+
+#### Testing
+- **52 tests** covering:
+  - Write operations (log_event, log_session_start/end, log_memory_snapshot, log_honeypot_message)
+  - Read operations (get_threat_log with filtering/pagination, get_session_detail, get_recent_events)
+  - Error handling (database unavailable, missing connection, invalid data)
+  - Concurrent operations (multiple simultaneous logs, session + event logging)
+  - Edge cases (empty data, extreme values, large payloads)
+
+---
+
 ## 📊 Integration Pattern For API Endpoints
 
 ### Chat Route (Layer 1-5 Pipeline)

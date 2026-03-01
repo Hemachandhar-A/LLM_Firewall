@@ -24,9 +24,25 @@ AMD/
 │   │       ├── cluster_centroids.json  ← 6 threat cluster centroids (384-dim each)
 │   │       ├── malicious_domains.json  ← 15 known C2/phishing/botnet domains
 │   │       └── umap_model.pkl          ← Fitted UMAP model (384-dim → 2-dim)
+│   │
+│   ├── api/                            ← 🌐 BACKEND INFRASTRUCTURE (Nishun + Hemach)
+│   │   ├── __init__.py
+│   │   ├── session_manager.py          ← Session state management ✅ (64 tests)
+│   │   ├── llm_client.py               ← Groq/Ollama LLM interface ✅ (50 tests)
+│   │   ├── event_emitter.py            ← N1-4: Real-time event broadcasting ✅ (185 lines, 59 tests)
+│   │   ├── websocket.py                ← N1-4: Admin WebSocket endpoint ✅ (60 lines)
+│   │   ├── db.py                       ← N1-5: Supabase persistence layer ✅ (540 lines, 52 tests)
+│   │   ├── chat.py                     ← Chat endpoint + Layer 6 honeypot (TODO)
+│   │   ├── cross_agent.py              ← Layer 7 cross-agent isolation (TODO)
+│   │   ├── admin.py                    ← Layer 9 admin API (TODO)
+│   │   └── __pycache__/
+│   │
+│   ├── main.py                         ← FastAPI app assembly ✅
+│   ├── config.py                       ← Environment configuration ✅
+│   ├── requirements.txt                ← All backend dependencies ✅
 │   └── requirements-classifiers.txt    ← Pinned dependencies (7 packages)
 │
-├── tests/                              ← 🧪 COMPREHENSIVE TEST SUITE (249+ tests)
+├── tests/                              ← 🧪 COMPREHENSIVE TEST SUITE (450+ tests)
 │   ├── conftest.py                     ← Pytest configuration
 │   ├── test_indic_classifier.py        ← Layer 1 tests: 95+ tests ✅ ALL PASS
 │   │   └── Structure:
@@ -60,7 +76,45 @@ AMD/
 │   │       ├── TestCrescendoSequence (1 test - 5-turn escalation)
 │   │       ├── TestSessionIndependence (1 test - Multi-session)
 │   │       └── TestSessionReset (1 test - History clearing)
+│   │
+│   ├── test_session_manager.py         ← Session manager tests: 64 tests ✅ ALL PASS
+│   ├── test_llm_client.py              ← LLM client tests: 50 tests ✅ ALL PASS (integration)
+│   │
 │   └── __pycache__/                    ← Python cache (auto-generated)
+│
+├── backend/tests/                      ← 🧪 BACKEND INFRASTRUCTURE TESTS (111 tests)
+│   ├── conftest.py                     ← Pytest configuration
+│   ├── test_event_emitter.py           ← N1-4: WebSocket event system: 59 tests ✅ ALL PASS
+│   │   └── Structure:
+│   │       ├── TestEventEmitterBasic (5 tests - Event dict completeness, UUID validation)
+│   │       ├── TestEventEmitterWebSocketIntegration (5 tests - Single/multiple clients, dead connections)
+│   │       ├── TestEventEmitterActionTypes (7 tests - All 6 valid types + invalid)
+│   │       ├── TestEventEmitterLayers (10 tests - Layers 0-9, boundary validation)
+│   │       ├── TestEventEmitterThreatScores (9 tests - Range validation, type conversion)
+│   │       ├── TestEventEmitterInputValidation (8 tests - Empty values, type checking)
+│   │       ├── TestEventEmitterMetadata (3 tests - Empty/large/nested structures)
+│   │       ├── TestEventEmitterUnicode (3 tests - Unicode in reason/session/metadata)
+│   │       ├── TestEventEmitterCoordinates (4 tests - UMAP coord validation)
+│   │       ├── TestEventEmitterConcurrency (2 tests - 10-50 simultaneous emits)
+│   │       └── TestEventEmitterDefaults (1 test - Minimal parameters)
+│   │
+│   ├── test_db.py                      ← N1-5: Supabase database layer: 52 tests ✅ ALL PASS
+│   │   └── Structure:
+│   │       ├── TestLogEvent (6 tests - Write operations, validation, graceful errors)
+│   │       ├── TestLogSessionStart (5 tests - Session creation, role validation)
+│   │       ├── TestLogSessionEnd (5 tests - Session end, risk scores)
+│   │       ├── TestLogMemorySnapshot (5 tests - Memory logging, quarantine)
+│   │       ├── TestLogHoneypotMessage (5 tests - Message appending, sequences)
+│   │       ├── TestGetThreatLog (10 tests - Filtering, pagination)
+│   │       ├── TestGetSessionDetail (4 tests - Session retrieval)
+│   │       ├── TestGetRecentEvents (4 tests - Recent event queries)
+│   │       ├── TestConcurrentDatabaseOperations (3 tests - Concurrent logging)
+│   │       ├── TestDatabaseErrorHandling (3 tests - No DB graceful handling)
+│   │       ├── TestMemorySnapshotQuarantine (1 test - Quarantine variations)
+│   │       └── TestEventEmissionSchema (1 test - Event schema verification)
+│   │
+│   └── __pycache__/
+│
 │
 ├── .venv/                              ← Virtual environment (auto-created)
 ├── .pytest_cache/                      ← Pytest cache (auto-generated)
@@ -69,7 +123,7 @@ AMD/
 ├── generate_embeddings.py              ← 🔧 Utility: Regenerate attack_seeds.json
 ├── requirements-classifiers.txt        ← Dependencies (same as backend/)
 │
-├── MASTER_GUIDE.md                     ← 📖 SINGLE SOURCE OF TRUTH (2900+ lines)
+├── MASTER_GUIDE.md                     ← 📖 SINGLE SOURCE OF TRUTH (3100+ lines)
 │   ├── Quick Start (5 minutes)
 │   ├── System Architecture
 │   ├── Installation Steps
@@ -78,7 +132,8 @@ AMD/
 │   ├── Layer 2B (Tool Scanner) - Full Reference with Critical Bug Fixes ✅
 │   ├── Layer 3 (Memory Auditor) - Full Reference
 │   ├── Layer 4 (Drift Engine) - Full Reference
-│   ├── Testing Guide (249+ tests documented)
+│   ├── Backend Infrastructure - Session Manager, LLM Client, N1-4, N1-5
+│   ├── Testing Guide (450+ tests documented)
 │   ├── Integration Patterns (FastAPI examples)
 │   ├── Error Handling (fail-secure design)
 │   ├── Performance Metrics

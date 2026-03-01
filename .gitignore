@@ -1,0 +1,133 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+.vs/
+.vim/
+.emacs
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.hypothesis/
+*.cover
+.nose*
+
+# Database/Secrets
+*.db
+*.sqlite
+*.sqlite3
+supabase_backup.sql
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
+.trashes
+ehthumbs.db
+
+# IDE Cache
+.cache/
+*.bak
+*.tmp
+
+# Node (if frontend exists)
+node_modules/
+npm-debug.log
+dist/
+.next/
+
+# Temporary Files
+*.tmp
+*.temp
+.tmp/
+
+# Model Cache (optional - comment out if you want to commit models)
+# *.pkl
+# *.pth
+# *.h5
+
+# Coverage Reports
+coverage.xml
+.coveragerc
+
+# Editor Backups
+*.orig
+*.rej
+
+# Migrations (if using Alembic)
+alembic/versions/*.py
+
+# Jupyter Notebooks (if applicable)
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# MacOS
+.AppleDouble
+.LSOverride
+.Spotlight-V100
+.Trashes
+
+# Windows
+$RECYCLE.BIN/
+ehthumbs.db
+Desktop.ini
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Keep environment template
+!.env.example
