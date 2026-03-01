@@ -1,4 +1,4 @@
-# NISHUN — Admin Portal
+# AgentShield — Admin Portal
 
 Real-time threat monitoring dashboard for the Adaptive LLM Firewall. Displays live security events, semantic drift visualization, and a filterable threat log archive.
 

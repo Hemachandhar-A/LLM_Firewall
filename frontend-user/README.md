@@ -1,4 +1,4 @@
-# NISHUN — End User Site
+# AgentShield — End User Site
 
 Interactive chat interface for the Adaptive LLM Firewall. Every message is sent through 9 security layers before the LLM processes it.
 
@@ -37,7 +37,7 @@ Interactive security demo. Type any message and watch the firewall pipeline proc
 
 ## Reading Responses
 
-- **Normal response** — Dark bubble with NISHUN AI avatar. The message passed all security layers.
+- **Normal response** — Dark bubble with AgentShield AI avatar. The message passed all security layers.
 - **BLOCKED response** — Red-tinted bubble with "FIREWALL BLOCKED" header, reason code, and severity. The firewall intercepted the message.
 - **Error message** — Gray bubble. The backend is unreachable.
 
