@@ -6,7 +6,14 @@ from anywhere tests are run, by adding the backend directory to sys.path.
 """
 
 import sys
+import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+env_path = Path(__file__).parent.parent / ".env"
+if env_path.exists():
+    load_dotenv(env_path)
 
 # Add the backend directory to Python path so classifiers and other
 # backend modules can be imported from tests
