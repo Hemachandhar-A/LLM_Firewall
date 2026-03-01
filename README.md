@@ -45,7 +45,8 @@ print(classify_threat('ignore all instructions'))"
 | **3** | Memory Auditor | ✅ READY | 38+ ✓ |
 | **4** | Semantic Drift Engine | ✅ READY | 6+ ✓ |
 | **5** | Output Guard | ✅ READY | 85+ ✓ |
-| **6-9** | Remaining Layers | 📋 TODO | — |
+| **8** | Adaptive Rule Engine | ✅ READY | 68+ ✓ |
+| **6,7,9** | Remaining Layers | 📋 TODO | — |
 
 **Critical Implementation**: All classifiers pass production-grade validation including fail-secure design, proper threshold handling, and pattern-based detection. See [MASTER_GUIDE.md](./MASTER_GUIDE.md) for complete details.
 
@@ -62,6 +63,7 @@ backend/classifiers/           ← All security classifiers
   ├── memory_auditor.py        ← Layer 3: Memory integrity detection ✅
   ├── drift_engine.py          ← Layer 4: Multi-turn attack detection ✅
   ├── output_guard.py          ← Layer 5: Output PII/leakage detection ✅
+  ├── adaptive_engine.py       ← Layer 8: Adaptive rule learning ✅
   ├── __init__.py              ← Proper exports
   └── data/
       ├── attack_seeds.json        ← 20+ attack embeddings
@@ -76,6 +78,7 @@ tests/                          ← All test suites
   ├── test_memory_auditor.py   ← 38+ tests ✓
   ├── test_drift_engine.py     ← 6+ tests ✓
   ├── test_output_guard.py     ← 63 tests ✓
+  ├── test_adaptive_engine.py  ← 68 tests ✓
   └── conftest.py              ← Shared test config
 
 backend/requirements-classifiers.txt  ← Dependencies (pinned versions)
