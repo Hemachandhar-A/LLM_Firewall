@@ -40,9 +40,10 @@ print(classify_threat('ignore all instructions'))"
 | Layer | Component | Status | Tests |
 |-------|-----------|--------|-------|
 | **1** | Indic Threat Classifier | ✅ READY | 95+ ✓ |
+| **2** | RAG Chunk Scanner | ✅ READY | 50+ ✓ |
 | **3** | Memory Auditor | ✅ READY | 38+ ✓ |
 | **4** | Semantic Drift Engine | ✅ READY | 6+ ✓ |
-| **2, 5-9** | Remaining Layers | 📋 TODO | — |
+| **5-9** | Remaining Layers | 📋 TODO | — |
 
 ---
 
@@ -52,13 +53,14 @@ print(classify_threat('ignore all instructions'))"
 backend/classifiers/           ← All security classifiers
   ├── base.py                  ← ClassifierResult & FailSecureError
   ├── indic_classifier.py      ← Layer 1: Prompt injection detection ✅
+  ├── rag_scanner.py           ← Layer 2: RAG document injection detection ✅
   ├── memory_auditor.py        ← Layer 3: Memory integrity detection ✅
   ├── drift_engine.py          ← Layer 4: Multi-turn attack detection ✅
   ├── __init__.py              ← Proper exports
   └── data/
       ├── attack_seeds.json        ← 20+ attack embeddings
       ├── cluster_centroids.json   ← 6 threat clusters
-      └── umap_model.pkl           ← Visualization model
+      └── umap_model.pkl           ← 2D visualization model
 
 tests/                          ← All test suites
   ├── test_indic_classifier.py ← 95+ tests ✓
