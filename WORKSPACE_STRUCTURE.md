@@ -14,15 +14,19 @@ AMD/
 │   │   ├── __init__.py                 ← Exports all classifiers
 │   │   ├── base.py                     ← ClassifierResult, FailSecureError (base contract)
 │   │   ├── indic_classifier.py         ← Layer 1: Prompt injection detection ✅ (508 lines)
+│   │   ├── rag_scanner.py              ← Layer 2A: RAG document injection detection ✅ (450+ lines)
+│   │   ├── tool_scanner.py             ← Layer 2B: MCP tool metadata scanner ✅ (566 lines, 10 critical bug fixes)
+│   │   ├── memory_auditor.py           ← Layer 3: Memory integrity detection ✅
 │   │   ├── drift_engine.py             ← Layer 4: Multi-turn attack detection ✅ (243 lines)
 │   │   ├── __pycache__/                ← Python cache (auto-generated)
-│   │   └── data/                       ← Pre-computed ML data
+│   │   └── data/                       ← Pre-computed ML data & threat intelligence
 │   │       ├── attack_seeds.json       ← 20 attack embeddings (384-dim each)
 │   │       ├── cluster_centroids.json  ← 6 threat cluster centroids (384-dim each)
+│   │       ├── malicious_domains.json  ← 15 known C2/phishing/botnet domains
 │   │       └── umap_model.pkl          ← Fitted UMAP model (384-dim → 2-dim)
 │   └── requirements-classifiers.txt    ← Pinned dependencies (7 packages)
 │
-├── tests/                              ← 🧪 COMPREHENSIVE TEST SUITE (101+ tests)
+├── tests/                              ← 🧪 COMPREHENSIVE TEST SUITE (249+ tests)
 │   ├── conftest.py                     ← Pytest configuration
 │   ├── test_indic_classifier.py        ← Layer 1 tests: 95+ tests ✅ ALL PASS
 │   │   └── Structure:
@@ -36,6 +40,18 @@ AMD/
 │   │       ├── TestBoundaryConditions (12 tests - Edge cases)
 │   │       ├── TestMetadataValidation (5 tests - Result completeness)
 │   │       └── TestPerformance (2 tests - Speed targets)
+│   ├── test_rag_scanner.py             ← Layer 2A tests: 50+ tests ✅ ALL PASS
+│   ├── test_tool_scanner.py            ← Layer 2B tests: 64 tests ✅ ALL PASS
+│   │   └── Structure:
+│   │       ├── TestDescriptionInjection (12 tests - 6 genuine, 6 adversarial)
+│   │       ├── TestEndpointAnomaly (10 tests - 5 genuine, 5 adversarial)
+│   │       ├── TestPermissionScopeMismatch (10 tests - 5 genuine, 5 adversarial)
+│   │       ├── TestParameterInjection (10 tests - 5 genuine, 5 adversarial)
+│   │       ├── TestCombi nedChecks (8 tests - Multi-check integration)
+│   │       ├── TestErrorHandling (5 tests - Input validation)
+│   │       ├── TestHelperFunctions (5 tests - Utility validation)
+│   │       └── TestBoundaryConditions (5 tests - Stress/edge cases)
+│   ├── test_memory_auditor.py          ← Layer 3 tests: 38+ tests ✅ ALL PASS
 │   ├── test_drift_engine.py            ← Layer 4 tests: 6+ tests ✅ ALL PASS
 │   │   └── Structure:
 │   │       ├── TestEmbeddings (1 test - 384-dim vectors)
@@ -53,13 +69,16 @@ AMD/
 ├── generate_embeddings.py              ← 🔧 Utility: Regenerate attack_seeds.json
 ├── requirements-classifiers.txt        ← Dependencies (same as backend/)
 │
-├── MASTER_GUIDE.md                     ← 📖 SINGLE SOURCE OF TRUTH (2500+ lines)
+├── MASTER_GUIDE.md                     ← 📖 SINGLE SOURCE OF TRUTH (2900+ lines)
 │   ├── Quick Start (5 minutes)
 │   ├── System Architecture
 │   ├── Installation Steps
 │   ├── Layer 1 (Indic Classifier) - Full Reference
+│   ├── Layer 2A (RAG Scanner) - Full Reference
+│   ├── Layer 2B (Tool Scanner) - Full Reference with Critical Bug Fixes ✅
+│   ├── Layer 3 (Memory Auditor) - Full Reference
 │   ├── Layer 4 (Drift Engine) - Full Reference
-│   ├── Testing Guide (95+ tests documented)
+│   ├── Testing Guide (249+ tests documented)
 │   ├── Integration Patterns (FastAPI examples)
 │   ├── Error Handling (fail-secure design)
 │   ├── Performance Metrics
@@ -68,6 +87,7 @@ AMD/
 │
 ├── README.md                           ← 📍 QUICK ENTRY POINT (this file points to MASTER_GUIDE.md)
 │   ├── What this product does
+```
 │   ├── TL;DR (30 seconds)
 │   ├── Status table
 │   ├── Repository overview

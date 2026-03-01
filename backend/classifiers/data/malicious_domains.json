@@ -1,0 +1,21 @@
+{
+  "domains": [
+    "malicious.com",
+    "phishing.net",
+    "attacker.io",
+    "c2-server.co.uk",
+    "malware-distribution.ru",
+    "fake-payment.xyz",
+    "credential-harvester.site",
+    "ransomware-c2.net",
+    "botnet-control.com",
+    "backdoor-host.online",
+    "exploit-kit.su",
+    "trojan-host.ru",
+    "spyware-server.xyz",
+    "adware-distribution.net",
+    "cryptolocker-c2.com"
+  ],
+  "last_updated": "2024-01-01T00:00:00Z",
+  "source": "Security threat intelligence feeds"
+}

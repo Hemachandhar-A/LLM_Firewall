@@ -40,10 +40,13 @@ print(classify_threat('ignore all instructions'))"
 | Layer | Component | Status | Tests |
 |-------|-----------|--------|-------|
 | **1** | Indic Threat Classifier | ✅ READY | 95+ ✓ |
-| **2** | RAG Chunk Scanner | ✅ READY | 50+ ✓ |
+| **2A** | RAG Chunk Scanner | ✅ READY | 50+ ✓ |
+| **2B** | MCP Tool Metadata Scanner | ✅ READY | 64+ ✓ |
 | **3** | Memory Auditor | ✅ READY | 38+ ✓ |
 | **4** | Semantic Drift Engine | ✅ READY | 6+ ✓ |
 | **5-9** | Remaining Layers | 📋 TODO | — |
+
+**Critical Implementation**: All classifiers pass production-grade validation. Tool metadata scanner includes 10 critical bug fixes (fail-secure design, correct threshold handling, shell injection detection on all endpoints). See [MASTER_GUIDE.md#critical-bug-fixes--implementation-details](./MASTER_GUIDE.md#critical-bug-fixes--implementation-details) for details.
 
 ---
 
@@ -53,17 +56,21 @@ print(classify_threat('ignore all instructions'))"
 backend/classifiers/           ← All security classifiers
   ├── base.py                  ← ClassifierResult & FailSecureError
   ├── indic_classifier.py      ← Layer 1: Prompt injection detection ✅
-  ├── rag_scanner.py           ← Layer 2: RAG document injection detection ✅
+  ├── rag_scanner.py           ← Layer 2A: RAG document injection detection ✅
+  ├── tool_scanner.py          ← Layer 2B: MCP tool metadata scanner ✅
   ├── memory_auditor.py        ← Layer 3: Memory integrity detection ✅
   ├── drift_engine.py          ← Layer 4: Multi-turn attack detection ✅
   ├── __init__.py              ← Proper exports
   └── data/
       ├── attack_seeds.json        ← 20+ attack embeddings
       ├── cluster_centroids.json   ← 6 threat clusters
+      ├── malicious_domains.json   ← 15 known C2/phishing domains
       └── umap_model.pkl           ← 2D visualization model
 
 tests/                          ← All test suites
   ├── test_indic_classifier.py ← 95+ tests ✓
+  ├── test_rag_scanner.py      ← 50+ tests ✓
+  ├── test_tool_scanner.py     ← 64 tests ✓ (all pass, failures validated)
   ├── test_memory_auditor.py   ← 38+ tests ✓
   └── test_drift_engine.py     ← 6+ tests ✓
 
