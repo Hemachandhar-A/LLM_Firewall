@@ -4,8 +4,9 @@ import { NavLink, Outlet } from 'react-router-dom';
 const NAV_ITEMS = [
   { path: '/', label: 'Live Dashboard', icon: '⊞' },
   { path: '/threat-log', label: 'Threat Log', icon: '⚠' },
-  { path: '#', label: 'Policy Management', icon: '◈', disabled: true },
-  { path: '#', label: 'Integrations', icon: '⚙', disabled: true },
+  { path: '/policy-management', label: 'Policy Management', icon: '◈' },
+  { path: '/integration-management', label: 'Integrations', icon: '🔌' },
+  { path: '/user-management', label: 'User Management', icon: '👥' },
   { path: '/settings', label: 'Settings', icon: '⚙' },
 ];
 
@@ -40,53 +41,32 @@ export default function AdminLayout({ wsConnected }) {
 
           {/* Nav Items */}
           <nav className="mt-2 px-3 flex flex-col gap-1">
-            {NAV_ITEMS.map((item) => {
-              if (item.disabled) {
-                return (
-                  <div
-                    key={item.label}
-                    className="flex items-center gap-3 px-4 rounded-lg"
-                    style={{
-                      height: '48px',
-                      color: '#6b7280',
-                      fontSize: '14px',
-                      cursor: 'default',
-                    }}
-                  >
-                    <span style={{ fontSize: '16px', width: '20px', textAlign: 'center' }}>
-                      {item.icon}
-                    </span>
-                    {item.label}
-                  </div>
-                );
-              }
-              return (
-                <NavLink
-                  key={item.label}
-                  to={item.path}
-                  end={item.path === '/'}
-                  className="no-underline"
-                  style={({ isActive }) => ({
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    padding: '0 16px',
-                    height: '48px',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    color: isActive ? '#ffffff' : '#9ca3af',
-                    background: isActive ? 'rgba(239,68,68,0.1)' : 'transparent',
-                    borderLeft: isActive ? '3px solid #ef4444' : '3px solid transparent',
-                    transition: 'all 0.15s ease',
-                  })}
-                >
-                  <span style={{ fontSize: '16px', width: '20px', textAlign: 'center' }}>
-                    {item.icon}
-                  </span>
-                  {item.label}
-                </NavLink>
-              );
-            })}
+            {NAV_ITEMS.map((item) => (
+              <NavLink
+                key={item.label}
+                to={item.path}
+                end={item.path === '/'}
+                className="no-underline"
+                style={({ isActive }) => ({
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '0 16px',
+                  height: '48px',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  color: isActive ? '#ffffff' : '#9ca3af',
+                  background: isActive ? 'rgba(239,68,68,0.1)' : 'transparent',
+                  borderLeft: isActive ? '3px solid #ef4444' : '3px solid transparent',
+                  transition: 'all 0.15s ease',
+                })}
+              >
+                <span style={{ fontSize: '16px', width: '20px', textAlign: 'center' }}>
+                  {item.icon}
+                </span>
+                {item.label}
+              </NavLink>
+            ))}
           </nav>
         </div>
 

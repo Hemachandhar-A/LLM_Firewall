@@ -4,6 +4,9 @@ import AdminLayout from './components/AdminLayout'
 import LiveDashboard from './pages/LiveDashboard'
 import ThreatLog from './pages/ThreatLog'
 import Settings from './pages/Settings'
+import PolicyManagement from './pages/PolicyManagement'
+import IntegrationManagement from './pages/IntegrationManagement'
+import UserManagement from './pages/UserManagement'
 import { createAdminWebSocket, fetchRecentEvents } from './api'
 
 const MAX_EVENTS = 100
@@ -66,6 +69,9 @@ function App() {
       <Route element={<AdminLayout wsConnected={wsConnected} />}>
         <Route path="/" element={<LiveDashboard events={events} />} />
         <Route path="/threat-log" element={<ThreatLog />} />
+        <Route path="/policy-management" element={<PolicyManagement />} />
+        <Route path="/integration-management" element={<IntegrationManagement />} />
+        <Route path="/user-management" element={<UserManagement />} />
         <Route path="/settings" element={<Settings wsConnected={wsConnected} />} />
       </Route>
     </Routes>
