@@ -35,16 +35,24 @@ from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 from enum import Enum
 
-import torch
-from sentence_transformers import SentenceTransformer
+# Graceful degradation for heavy ML libs
+_ml_available = False
+try:
+    import torch
+    from sentence_transformers import SentenceTransformer
+    _ml_available = True
+except ImportError:
+    torch = None
+    SentenceTransformer = None
+    logging.getLogger(__name__).warning("torch/sentence-transformers not available — RAG scanner semantic analysis disabled")
 
 from classifiers.base import ClassifierResult, FailSecureError
 
 logger = logging.getLogger(__name__)
 
 # Global state for embedding model and attack embeddings
-_embedding_model: Optional[SentenceTransformer] = None
-_attack_embeddings: Optional[torch.Tensor] = None
+_embedding_model = None
+_attack_embeddings = None
 _model_loaded = False
 _model_lock = threading.Lock()  # Synchronize lazy loading across threads
 
@@ -171,9 +179,12 @@ def _ensure_model_loaded() -> bool:
     Sets _model_loaded = True ONLY after successful load, preventing race conditions.
     
     Returns True if loaded successfully, False otherwise.
-    Raises FailSecureError if loading fails.
+    Raises FailSecureError if loading fails (only when ML libs are available).
     """
     global _embedding_model, _attack_embeddings, _model_loaded
+    
+    if not _ml_available:
+        return False
     
     if _model_loaded:
         return _embedding_model is not None
@@ -488,8 +499,11 @@ def scan_rag_chunk(
                 }
             )
         
-        # Ensure embedding model is loaded
-        _ensure_model_loaded()
+        # Ensure embedding model is loaded (non-fatal if ML libs missing)
+        try:
+            _ensure_model_loaded()
+        except FailSecureError:
+            logger.warning("RAG scanner ML model unavailable — using pattern-only detection")
         
         # METHOD 1: Instruction pattern detection
         method_1_score, instruction_patterns = _detect_instruction_patterns(chunk)

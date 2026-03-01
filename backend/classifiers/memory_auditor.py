@@ -36,8 +36,15 @@ import logging
 import re
 from typing import List, Set, Dict, Tuple
 import numpy as np
-from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
+
+# Graceful degradation for heavy ML libs
+_ml_available = False
+try:
+    from sentence_transformers import SentenceTransformer
+    from sklearn.metrics.pairwise import cosine_similarity
+    _ml_available = True
+except ImportError:
+    logger.warning("sentence-transformers/sklearn not available — memory auditor semantic analysis disabled")
 
 from .base import ClassifierResult, FailSecureError
 
@@ -47,10 +54,13 @@ logger = logging.getLogger(__name__)
 # Module Initialization: Load embedding model and attack seeds
 # ============================================================================
 
-try:
-    EMBEDDING_MODEL = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-except Exception as e:
-    raise FailSecureError(f"Failed to load embedding model: {e}")
+EMBEDDING_MODEL = None
+if _ml_available:
+    try:
+        EMBEDDING_MODEL = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+    except Exception as e:
+        logger.warning(f"Failed to load embedding model: {e}")
+        _ml_available = False
 
 # Load pre-computed attack seed embeddings
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
@@ -67,34 +77,36 @@ try:
     
     # Convert embeddings list to numpy array
     embeddings_list = [attack["embedding"] for attack in seeds_data.get("attacks", [])]
-    ATTACK_SEEDS_EMBEDDINGS = np.array(embeddings_list, dtype=np.float32)
+    if embeddings_list:
+        ATTACK_SEEDS_EMBEDDINGS = np.array(embeddings_list, dtype=np.float32)
     
     if len(ATTACK_SEEDS_TEXT) == 0:
-        raise FailSecureError("No attack seeds loaded from attack_seeds.json")
+        logger.warning("No attack seeds loaded from attack_seeds.json")
     
-    # FIX 2: Validate attack seed integrity at module load time
-    if ATTACK_SEEDS_EMBEDDINGS.shape[0] < 10:
-        raise FailSecureError(
-            f"Insufficient attack seeds: {ATTACK_SEEDS_EMBEDDINGS.shape[0]} < 10 required"
-        )
-    
-    if ATTACK_SEEDS_EMBEDDINGS.shape[1] != 384:
-        raise FailSecureError(
-            f"Invalid embedding dimension: {ATTACK_SEEDS_EMBEDDINGS.shape[1]} != 384 expected"
-        )
-    
-    if ATTACK_SEEDS_EMBEDDINGS.shape[0] != len(ATTACK_SEEDS_TEXT):
-        raise FailSecureError(
-            f"Seeds and embeddings misaligned: {len(ATTACK_SEEDS_TEXT)} texts vs "
-            f"{ATTACK_SEEDS_EMBEDDINGS.shape[0]} embeddings"
-        )
+    # Validate attack seed integrity at module load time
+    if ATTACK_SEEDS_EMBEDDINGS is not None:
+        if ATTACK_SEEDS_EMBEDDINGS.shape[0] < 10:
+            logger.warning(
+                f"Insufficient attack seeds: {ATTACK_SEEDS_EMBEDDINGS.shape[0]} < 10 required"
+            )
+        
+        if len(ATTACK_SEEDS_EMBEDDINGS.shape) > 1 and ATTACK_SEEDS_EMBEDDINGS.shape[1] != 384:
+            logger.warning(
+                f"Invalid embedding dimension: {ATTACK_SEEDS_EMBEDDINGS.shape[1]} != 384 expected"
+            )
+        
+        if ATTACK_SEEDS_EMBEDDINGS.shape[0] != len(ATTACK_SEEDS_TEXT):
+            logger.warning(
+                f"Seeds and embeddings misaligned: {len(ATTACK_SEEDS_TEXT)} texts vs "
+                f"{ATTACK_SEEDS_EMBEDDINGS.shape[0]} embeddings"
+            )
         
 except FileNotFoundError:
-    raise FailSecureError(f"Attack seeds file not found: {ATTACK_SEEDS_FILE}")
+    logger.warning(f"Attack seeds file not found: {ATTACK_SEEDS_FILE}")
 except json.JSONDecodeError as e:
-    raise FailSecureError(f"Invalid JSON in attack_seeds.json: {e}")
+    logger.warning(f"Invalid JSON in attack_seeds.json: {e}")
 except Exception as e:
-    raise FailSecureError(f"Failed to load attack seeds: {e}")
+    logger.warning(f"Failed to load attack seeds: {e}")
 
 
 # ============================================================================
@@ -379,6 +391,10 @@ def _match_pattern_d_semantic_similarity(text: str, threshold: float = 0.7) -> b
         FailSecureError: If embedding fails
     """
     if not text or len(text.strip()) == 0:
+        return False
+    
+    # Skip semantic analysis if ML libs unavailable
+    if not _ml_available or EMBEDDING_MODEL is None or ATTACK_SEEDS_EMBEDDINGS is None:
         return False
     
     try:

@@ -31,7 +31,15 @@ from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 
-from sentence_transformers import SentenceTransformer
+# Graceful degradation for heavy ML libs
+_ml_available = False
+try:
+    from sentence_transformers import SentenceTransformer
+    _ml_available = True
+except ImportError:
+    SentenceTransformer = None
+    logging.getLogger(__name__).warning("sentence-transformers not available — adaptive engine embedding disabled")
+
 import numpy as np
 
 from .base import FailSecureError
@@ -46,9 +54,11 @@ logger = logging.getLogger(__name__)
 _embedding_model = None
 _model_lock = threading.Lock()
 
-def _get_embedding_model() -> SentenceTransformer:
+def _get_embedding_model():
     """Get or load the embedding model (thread-safe lazy load)."""
     global _embedding_model
+    if not _ml_available:
+        raise FailSecureError("sentence-transformers not installed — cannot generate embeddings")
     if _embedding_model is not None:
         return _embedding_model
     with _model_lock:

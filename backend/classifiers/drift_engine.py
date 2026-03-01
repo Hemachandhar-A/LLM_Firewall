@@ -15,23 +15,40 @@ OWASP tag: "LLM04:2025"
 import json
 import pickle
 import os
+import logging
 import numpy as np
 from typing import Dict, List
-from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_distances
 
 from .base import ClassifierResult, FailSecureError
+
+logger = logging.getLogger(__name__)
+
+# Graceful degradation for heavy ML libs
+_ml_available = False
+
+try:
+    from sentence_transformers import SentenceTransformer
+    from sklearn.metrics.pairwise import cosine_distances
+    _ml_available = True
+except ImportError:
+    logger.warning("sentence-transformers/sklearn not available — drift engine disabled")
 
 
 # ============================================================================
 # Module Initialization
 # ============================================================================
 
-# Load model once at import time
-try:
-    MODEL = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-except Exception as e:
-    raise FailSecureError(f"Failed to load sentence-transformers model: {e}")
+MODEL = None
+CLUSTER_CENTROIDS = {}
+UMAP_MODEL = None
+
+if _ml_available:
+    # Load model once at import time
+    try:
+        MODEL = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+    except Exception as e:
+        logger.warning(f"Failed to load sentence-transformers model: {e}")
+        _ml_available = False
 
 # Load cluster centroids from JSON
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
@@ -45,36 +62,34 @@ try:
         for cluster_name, centroid in centroids_data.items()
     }
 except Exception as e:
-    raise FailSecureError(
-        f"Failed to load cluster centroids from {CLUSTER_CENTROIDS_FILE}: {e}"
-    )
+    logger.warning(f"Failed to load cluster centroids: {e}")
 
 # Load or fit UMAP model
 UMAP_MODEL_FILE = os.path.join(DATA_DIR, "umap_model.pkl")
 
-try:
-    if os.path.exists(UMAP_MODEL_FILE) and os.path.getsize(UMAP_MODEL_FILE) > 0:
-        with open(UMAP_MODEL_FILE, "rb") as f:
-            UMAP_MODEL = pickle.load(f)
-    else:
-        # Fit UMAP on cluster centroids
-        from umap import UMAP
-        
-        centroid_vectors = np.array(
-            [centroid for centroid in CLUSTER_CENTROIDS.values()],
-            dtype=np.float32,
-        )
-        
-        UMAP_MODEL = UMAP(n_components=2, random_state=42, min_dist=0.1)
-        UMAP_MODEL.fit(centroid_vectors)
-        
-        # Save for future use
-        os.makedirs(DATA_DIR, exist_ok=True)
-        with open(UMAP_MODEL_FILE, "wb") as f:
-            pickle.dump(UMAP_MODEL, f)
-            
-except Exception as e:
-    raise FailSecureError(f"Failed to load/fit UMAP model: {e}")
+if _ml_available:
+    try:
+        if os.path.exists(UMAP_MODEL_FILE) and os.path.getsize(UMAP_MODEL_FILE) > 0:
+            with open(UMAP_MODEL_FILE, "rb") as f:
+                UMAP_MODEL = pickle.load(f)
+        else:
+            from umap import UMAP
+
+            centroid_vectors = np.array(
+                [centroid for centroid in CLUSTER_CENTROIDS.values()],
+                dtype=np.float32,
+            )
+
+            UMAP_MODEL = UMAP(n_components=2, random_state=42, min_dist=0.1)
+            UMAP_MODEL.fit(centroid_vectors)
+
+            os.makedirs(DATA_DIR, exist_ok=True)
+            with open(UMAP_MODEL_FILE, "wb") as f:
+                pickle.dump(UMAP_MODEL, f)
+
+    except Exception as e:
+        logger.warning(f"Failed to load/fit UMAP model: {e}")
+        _ml_available = False
 
 # In-memory session history: session_id -> list of dicts with turn data
 SESSION_HISTORY: Dict[str, List[Dict]] = {}
@@ -88,16 +103,12 @@ SESSION_HISTORY: Dict[str, List[Dict]] = {}
 def embed_turn(text: str) -> np.ndarray:
     """
     Embed a single turn of conversation text.
-
-    Args:
-        text (str): The input text to embed
-
-    Returns:
-        np.ndarray: A 384-dimensional embedding vector
-
-    Raises:
-        FailSecureError: If embedding fails
+    Returns a 384-dim numpy array, or a zero vector if ML libs are unavailable.
     """
+    if not _ml_available or MODEL is None:
+        # Return zero vector so callers expecting ndarray don't break
+        return np.zeros(384, dtype=np.float32)
+
     if not isinstance(text, str):
         raise FailSecureError(f"embed_turn requires str input, got {type(text)}")
 
@@ -141,6 +152,17 @@ def compute_drift_velocity(session_id: str, text: str) -> ClassifierResult:
     Raises:
         FailSecureError: If computation fails
     """
+    # Graceful degradation: if ML libs unavailable, pass through
+    if not _ml_available or MODEL is None:
+        return ClassifierResult(
+            passed=True, threat_score=0.0,
+            reason="Drift engine unavailable (ML libs not installed)",
+            owasp_tag="LLM04:2025",
+            metadata={"velocity": 0.0, "nearest_cluster": "unknown",
+                       "x_coord": 0.0, "y_coord": 0.0, "turn_number": 0,
+                       "session_vector_history": []}
+        )
+
     try:
         # Embed the current turn
         embedding = embed_turn(text)
