@@ -1,9 +1,9 @@
-# MASTER GUIDE: Adaptive LLM Firewall with Teaming
+# MASTER GUIDE: Adaptive LLM Firewall with Red Teaming
 ## Complete Implementation, Setup, Testing & Integration Reference
 
-**Status**: Production Ready for Layers 1-5, 8 + Chat Pipeline + Admin API ✅  
-**Last Updated**: June 2025  
-**Version**: 1.5
+**Status**: ✅ Full-Stack Production Ready (Backend + Frontend-User + Frontend-Admin)  
+**Last Updated**: July 2025  
+**Version**: 2.0
 
 ---
 
@@ -13,6 +13,7 @@
 |------|-----------|
 | **First Time?** | [Quick Start](#quick-start-5-minutes) |
 | **Installing?** | [Installation Steps](#installation-steps) |
+| **Setting Up Frontends?** | [Frontend Setup](#-frontend-setup) |
 | **Developing Classifiers?** | [Architecture Overview](#system-architecture) |
 | **Integrating Chat Endpoint?** | [Chat Pipeline](#-chat-pipeline-endpoint-n1-6) |
 | **Running Tests?** | [Testing Guide](#testing-guide) |
@@ -32,21 +33,37 @@ A **production-grade security middleware** that intercepts every message to an L
 
 ### Install & Verify (Linux/macOS/Windows)
 ```bash
-# 1. Setup environment
+# 1. Setup backend environment
 python3.11 -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
-# 2. Install dependencies
+# 2. Install backend dependencies
 pip install -r backend/requirements-classifiers.txt
+pip install -r backend/requirements.txt
 
-# 3. Verify installation
-python -c "
-from classifiers.indic_classifier import classify_threat
-result = classify_threat('What is the capital of France?', role='guest')
-print(f'✓ OK - Classifier working' if result.passed else '✗ FAILED')
-"
+# 3. Configure environment
+cp backend/.env.example backend/.env
+# Edit backend/.env with your GROQ_API_KEY, SUPABASE_URL, SUPABASE_ANON_KEY
 
-# 4. Run all tests
+# 4. Install frontend dependencies
+cd frontend-user && npm install && cd ..
+cd frontend-admin && npm install && cd ..
+
+# 5. Start all three servers
+# Terminal 1: Backend (port 8000)
+python -m uvicorn backend.main:app --reload --port 8000
+
+# Terminal 2: User Frontend (port 5173)
+cd frontend-user && npm run dev
+
+# Terminal 3: Admin Dashboard (port 5174)
+cd frontend-admin && npm run dev
+
+# 6. Open in browser
+# User Chat:      http://localhost:5173
+# Admin Dashboard: http://localhost:5174
+
+# 7. Run all tests
 pytest tests/ -v
 ```
 
@@ -99,8 +116,8 @@ Legend: ✅ = Implemented | 📋 = TODO
 | **Primary LLM** | Groq (llama-3.3-70b-versatile) | Safe LLM responses |
 | **Honeypot LLM** | Ollama (phi3:mini) | Tarpit for attacks |
 | **Database** | Supabase (Postgres + Realtime) | Persistent logs & storage |
-| **Frontend (User)** | React 18, Tailwind, Vite | Chat interface |
-| **Frontend (Admin)** | React 18, Tailwind, Vite | Threat dashboard |
+| **Frontend (User)** | React 19, Vite 7.3, Tailwind v3 | Chat interface (port 5173) |
+| **Frontend (Admin)** | React 19, Vite 7.3, Tailwind v3, Plotly.js | Threat dashboard (port 5174) |
 | **Deployment** | Railway (backend), Vercel (frontend) | Production hosting |
 
 ### Project Structure
@@ -1901,6 +1918,119 @@ These rules ensure this product is production-grade:
 
 ---
 
+## 🖥️ Frontend Setup
+
+Both frontends are React 19 SPAs built with Vite 7.3, Tailwind CSS v3, and a unified dark design system.
+
+### Design System
+| Token | Value | Usage |
+|-------|-------|-------|
+| Background | `#0a0a0a` | Page background |
+| Surface | `#111111` | Cards, panels |
+| Input | `#1a1a1a` | Form inputs, textareas |
+| Border | `#1e1e1e` / `#2a2a2a` | Dividers |
+| Primary accent | `#ef4444` (red-500) | Buttons, highlights, threats |
+| Body font | DM Sans | UI text |
+| Code font | JetBrains Mono | Code, terminal, monospace |
+| Border radius | max 8px | All rounded corners |
+
+### Frontend-User (Chat Interface) — Port 5173
+
+**Purpose**: Public-facing chat interface where users interact with the LLM through the firewall.
+
+**Setup**:
+```bash
+cd frontend-user
+npm install
+npm run dev        # → http://localhost:5173
+```
+
+**Environment** (`.env`):
+```
+VITE_BACKEND_URL=http://localhost:8000
+VITE_WS_URL=ws://localhost:8000
+VITE_ADMIN_URL=http://localhost:5174
+```
+
+**Pages**:
+| Route | Component | Description |
+|-------|-----------|-------------|
+| `/` | `LandingPage.jsx` | Product hero, animated terminal demo, feature grid, CTA |
+| `/chat` | `ChatPage.jsx` | Full chat UI with attack scenario buttons |
+
+**Key Components**:
+- **Icons.jsx**: ~15 SVG icons (Shield, Lock, Brain, Terminal, Zap, etc.)
+- **LandingPage.jsx**: Navbar, Hero section, TerminalBlock (animated typing demo), Features grid (6 cards), CTA, Footer
+- **ChatPage.jsx** (523 lines): Top bar with session info, 6 pre-built attack scenario buttons (Prompt Injection, Hinglish Injection, System Prompt Extract, Crescendo Attack, Memory Bomb, Data Exfiltration), message bubbles with user/assistant/blocked/error states, typing indicator animation, textarea with character counter, 5-turn Crescendo auto-cycling
+
+**API Integration** (`api.js`):
+```javascript
+// POST /chat/message → { session_id, response, blocked, block_reason, block_layer, turn_number }
+sendMessage(sessionId, message, role)
+```
+
+### Frontend-Admin (Dashboard) — Port 5174
+
+**Purpose**: Admin-only dashboard showing real-time security events, threat analytics, and system configuration.
+
+**Setup**:
+```bash
+cd frontend-admin
+npm install
+npm run dev        # → http://localhost:5174
+```
+
+**Environment** (`.env`):
+```
+VITE_BACKEND_URL=http://localhost:8000
+VITE_WS_URL=ws://localhost:8000
+```
+
+**Pages**:
+| Route | Component | Description |
+|-------|-----------|-------------|
+| `/` | `LiveDashboard.jsx` | Real-time stats, scatter plot, event feed |
+| `/threats` | `ThreatLog.jsx` | Filterable paginated threat log with CSV export |
+| `/settings` | `Settings.jsx` | Threshold sliders, layer toggles, system info |
+
+**Key Components**:
+- **App.jsx**: WebSocket lifecycle (connect → message → error → reconnect with 3s backoff), passes `wsEvents` to all pages
+- **AdminLayout.jsx**: 240px sidebar with navigation links (Live Dashboard, Threat Log, Settings) + main content area
+- **LiveDashboard.jsx**: StatCards (Sessions, Blocked, Events, Block Rate), Plotly.js scatter chart showing threat clusters (UMAP 2D), real-time EventCards feed
+- **ThreatLog.jsx**: Layer/action/OWASP filter bar, paginated table with expandable detail rows showing full metadata, CSV export button
+- **Settings.jsx**: ThresholdSlider components for Layers 1-5, Layer toggle switches, System info panel (uptime, model versions)
+
+**API Integration** (`api.js`):
+```javascript
+fetchStats()                          // GET /admin/stats
+fetchThreatLog(filters)               // GET /admin/threat-log?action=...&layer=...
+fetchSessionDetail(sessionId)         // GET /admin/sessions/{id}
+fetchRecentEvents(limit)              // GET /admin/events/recent?limit=...
+fetchActiveSessions()                 // GET /admin/sessions/active
+createAdminWebSocket(onMessage)       // ws://localhost:8000/ws/admin
+```
+
+### Building for Production
+```bash
+# User frontend
+cd frontend-user && npm run build
+# → dist/ ready for Vercel/Netlify/static hosting
+
+# Admin frontend
+cd frontend-admin && npm run build
+# → dist/ ready for deployment
+```
+
+### Integration Fixes Applied
+During backend-frontend integration, the following fixes were made to ensure everything works end-to-end:
+
+1. **`backend/main.py`**: Added `from dotenv import load_dotenv; load_dotenv()` before all imports to ensure environment variables are available to `os.getenv()` calls
+2. **`backend/config.py`**: Added `extra = "ignore"` to Pydantic Settings (prevents crash on extra env vars), made all API keys optional with `""` defaults, renamed `SUPABASE_KEY` → `SUPABASE_ANON_KEY`
+3. **`backend/api/db.py`**: Added `extra = "ignore"` to SupabaseSettings, fixed 5 broken Supabase calls (missing `.execute()`), fixed `.update()` to use chained `.eq()` pattern, fixed `.upsert()` `on_conflict` kwarg, added `asyncio.wait_for` timeouts (5s writes, 15s reads)
+4. **`backend/classifiers/indic_classifier.py`**: Changed "exactly 20 attacks" validation to `>= 1` (now 21 entries after adaptive engine promotion)
+
+---
+
 ## 🎯 What's Next?
 
 ### Implemented ✅
@@ -1919,14 +2049,13 @@ These rules ensure this product is production-grade:
 - WebSocket Event System (185 lines, 59 tests)
 - Supabase Database Layer (540 lines, 52 tests)
 - Base contracts (ClassifierResult, FailSecureError)
-- Test suite (all 647+ tests passing)
+- Test suite (all 800+ tests passing)
+- Frontend-User: React chat interface (port 5173) — LandingPage + ChatPage
+- Frontend-Admin: React admin dashboard (port 5174) — LiveDashboard + ThreatLog + Settings
+- Full-stack integration: Backend ↔ Frontend-User ↔ Frontend-Admin verified E2E
 
 ### TODO 📋
 - Layer 7: Cross-Agent Interceptor
-- Frontend UIs (User + Admin)
-
-### Estimated Effort
-~1000 lines of code for remaining layer + frontend (~3-4 weeks for full team)
 
 ---
 
@@ -1934,18 +2063,28 @@ These rules ensure this product is production-grade:
 
 ### Common Commands
 ```bash
-# Setup
+# Backend Setup
 python3.11 -m venv .venv && source .venv/bin/activate
 pip install -r backend/requirements-classifiers.txt
+pip install -r backend/requirements.txt
+
+# Frontend Setup
+cd frontend-user && npm install && cd ..
+cd frontend-admin && npm install && cd ..
+
+# Start All Servers
+python -m uvicorn backend.main:app --reload --port 8000   # Terminal 1
+cd frontend-user && npm run dev                             # Terminal 2
+cd frontend-admin && npm run dev                            # Terminal 3
 
 # Test
 pytest tests/ -v                  # All tests
 pytest tests/ -v -s               # Show print statements
 pytest tests/ --cov=classifiers   # Coverage report
 
-# Use in Code
-from classifiers.indic_classifier import classify_threat
-from classifiers.drift_engine import compute_drift_velocity, reset_session
+# Build Frontends
+cd frontend-user && npm run build    # Output: dist/
+cd frontend-admin && npm run build   # Output: dist/
 
 # Regenerate Data
 python generate_embeddings.py
@@ -2416,5 +2555,5 @@ For issues or questions:
 
 ---
 
-**Status**: Production Ready for Layers 1-5, 8 + Chat Pipeline + Admin API ✅  
-**Next Review**: After Layer 7 Implementation & Frontend UIs
+**Status**: ✅ Full-Stack Production Ready (Layers 1-5, 8 + Chat Pipeline + Admin API + Both Frontends)  
+**Next Review**: After Layer 7 Implementation

@@ -1,4 +1,4 @@
-# Adaptive LLM Firewall with Teaming
+﻿# Adaptive LLM Firewall with Teaming
 
 **Production-grade security middleware** that intercepts every message to an LLM and runs it through 9 defense layers to detect and block attacks.
 

@@ -41,6 +41,7 @@ class SupabaseSettings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False
+        extra = "ignore"
 
 
 # Global Supabase client (lazy-initialized)
@@ -117,23 +118,25 @@ async def log_event(event: dict) -> None:
                 logger.warning(f"Event missing required field: {field}")
                 return
         
-        # Insert into events table
-        response = await asyncio.to_thread(
-            client.table("events").insert,
-            {
-                "event_id": event["event_id"],
-                "session_id": event["session_id"],
-                "layer": event["layer"],
-                "action": event["action"],
-                "threat_score": event["threat_score"],
-                "reason": event["reason"],
-                "owasp_tag": event["owasp_tag"],
-                "turn_number": event["turn_number"],
-                "x_coord": event["x_coord"],
-                "y_coord": event["y_coord"],
-                "metadata": event.get("metadata", {}),
-                "timestamp": event["timestamp"],
-            }
+        # Insert into events table (with 5s timeout to never block pipeline)
+        response = await asyncio.wait_for(
+            asyncio.to_thread(
+                client.table("events").insert({
+                    "event_id": event["event_id"],
+                    "session_id": event["session_id"],
+                    "layer": event["layer"],
+                    "action": event["action"],
+                    "threat_score": event["threat_score"],
+                    "reason": event["reason"],
+                    "owasp_tag": event["owasp_tag"],
+                    "turn_number": event["turn_number"],
+                    "x_coord": event["x_coord"],
+                    "y_coord": event["y_coord"],
+                    "metadata": event.get("metadata", {}),
+                    "timestamp": event["timestamp"],
+                }).execute
+            ),
+            timeout=5.0
         )
         
         logger.debug(f"Event {event['event_id']} logged to database")
@@ -164,16 +167,18 @@ async def log_session_start(session_id: str, role: str) -> None:
             logger.warning(f"Invalid role for session: {role}")
             return
         
-        await asyncio.to_thread(
-            client.table("sessions").insert,
-            {
-                "session_id": session_id,
-                "role": role,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "total_turns": 0,
-                "final_risk_score": 0.0,
-                "is_honeypot": False,
-            }
+        await asyncio.wait_for(
+            asyncio.to_thread(
+                client.table("sessions").insert({
+                    "session_id": session_id,
+                    "role": role,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "total_turns": 0,
+                    "final_risk_score": 0.0,
+                    "is_honeypot": False,
+                }).execute
+            ),
+            timeout=5.0
         )
         
         logger.debug(f"Session {session_id} ({role}) logged to database")
@@ -214,15 +219,16 @@ async def log_session_end(
             logger.warning(f"Invalid final_risk_score: {final_risk_score}")
             return
         
-        await asyncio.to_thread(
-            client.table("sessions").update,
-            {
-                "ended_at": datetime.now(timezone.utc).isoformat(),
-                "total_turns": total_turns,
-                "final_risk_score": final_risk_score,
-                "is_honeypot": is_honeypot,
-            },
-            {"session_id": session_id}
+        await asyncio.wait_for(
+            asyncio.to_thread(
+                client.table("sessions").update({
+                    "ended_at": datetime.now(timezone.utc).isoformat(),
+                    "total_turns": total_turns,
+                    "final_risk_score": final_risk_score,
+                    "is_honeypot": is_honeypot,
+                }).eq("session_id", session_id).execute
+            ),
+            timeout=5.0
         )
         
         logger.debug(f"Session {session_id} end logged (turns={total_turns}, risk={final_risk_score})")
@@ -265,16 +271,18 @@ async def log_memory_snapshot(
             logger.warning(f"Invalid content_length: {content_length}")
             return
         
-        await asyncio.to_thread(
-            client.table("memory_snapshots").insert,
-            {
-                "session_id": session_id,
-                "snapshot_hash": content_hash,
-                "content_length": content_length,
-                "quarantined": quarantined,
-                "quarantine_reason": quarantine_reason,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            }
+        await asyncio.wait_for(
+            asyncio.to_thread(
+                client.table("memory_snapshots").insert({
+                    "session_id": session_id,
+                    "snapshot_hash": content_hash,
+                    "content_length": content_length,
+                    "quarantined": quarantined,
+                    "quarantine_reason": quarantine_reason,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                }).execute
+            ),
+            timeout=5.0
         )
         
         logger.debug(f"Memory snapshot logged for session {session_id} (quarantined={quarantined})")
@@ -314,8 +322,11 @@ async def log_honeypot_message(
             return
         
         # Fetch existing session to append to messages
-        existing = await asyncio.to_thread(
-            client.table("honeypot_sessions").select("messages").eq("session_id", session_id).execute
+        existing = await asyncio.wait_for(
+            asyncio.to_thread(
+                client.table("honeypot_sessions").select("messages").eq("session_id", session_id).execute
+            ),
+            timeout=5.0
         )
         
         messages = []
@@ -330,15 +341,16 @@ async def log_honeypot_message(
         })
         
         # Upsert honeypot session
-        await asyncio.to_thread(
-            client.table("honeypot_sessions").upsert,
-            {
-                "session_id": session_id,
-                "started_at": datetime.now(timezone.utc).isoformat(),
-                "messages": messages,
-                "total_messages": len(messages),
-            },
-            {"onConflict": "session_id"}
+        await asyncio.wait_for(
+            asyncio.to_thread(
+                client.table("honeypot_sessions").upsert({
+                    "session_id": session_id,
+                    "started_at": datetime.now(timezone.utc).isoformat(),
+                    "messages": messages,
+                    "total_messages": len(messages),
+                }, on_conflict="session_id").execute
+            ),
+            timeout=5.0
         )
         
         logger.debug(f"Honeypot message appended to session {session_id} (total={len(messages)})")
@@ -410,10 +422,11 @@ async def get_threat_log(
         
         # Execute with pagination
         start = (page - 1) * page_size
-        response = await asyncio.to_thread(
-            query.order("timestamp", desc=True).range,
-            start,
-            start + page_size - 1
+        response = await asyncio.wait_for(
+            asyncio.to_thread(
+                query.order("timestamp", desc=True).range(start, start + page_size - 1).execute
+            ),
+            timeout=15.0
         )
         
         # Extract results
@@ -472,22 +485,31 @@ async def get_session_detail(session_id: str) -> dict:
             }
         
         # Get session record
-        session_response = await asyncio.to_thread(
-            client.table("sessions").select("*").eq("session_id", session_id).execute
+        session_response = await asyncio.wait_for(
+            asyncio.to_thread(
+                client.table("sessions").select("*").eq("session_id", session_id).execute
+            ),
+            timeout=15.0
         )
         
         session = session_response.data[0] if session_response.data else None
         
         # Get all events for this session
-        events_response = await asyncio.to_thread(
-            client.table("events").select("*").eq("session_id", session_id).order("timestamp").execute
+        events_response = await asyncio.wait_for(
+            asyncio.to_thread(
+                client.table("events").select("*").eq("session_id", session_id).order("timestamp").execute
+            ),
+            timeout=15.0
         )
         
         events = events_response.data or []
         
         # Get all memory snapshots for this session
-        snapshots_response = await asyncio.to_thread(
-            client.table("memory_snapshots").select("*").eq("session_id", session_id).order("created_at").execute
+        snapshots_response = await asyncio.wait_for(
+            asyncio.to_thread(
+                client.table("memory_snapshots").select("*").eq("session_id", session_id).order("created_at").execute
+            ),
+            timeout=15.0
         )
         
         snapshots = snapshots_response.data or []
@@ -530,8 +552,11 @@ async def get_recent_events(limit: int = 20) -> list:
         if limit > 100:
             limit = 100
         
-        response = await asyncio.to_thread(
-            client.table("events").select("*").order("timestamp", desc=True).limit(limit).execute
+        response = await asyncio.wait_for(
+            asyncio.to_thread(
+                client.table("events").select("*").order("timestamp", desc=True).limit(limit).execute
+            ),
+            timeout=15.0
         )
         
         return response.data or []

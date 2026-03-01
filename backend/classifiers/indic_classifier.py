@@ -214,8 +214,8 @@ def _load_embedding_model():
             raise ValueError("attack_seeds.json missing 'attacks' key")
         
         attacks = data["attacks"]
-        if len(attacks) != 20:
-            raise ValueError(f"attack_seeds.json must have exactly 20 attacks, got {len(attacks)}")
+        if len(attacks) < 1:
+            raise ValueError(f"attack_seeds.json must have at least 1 attack, got {len(attacks)}")
         
         # Load embeddings from JSON
         embeddings = []
