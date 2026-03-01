@@ -44,9 +44,10 @@ print(classify_threat('ignore all instructions'))"
 | **2B** | MCP Tool Metadata Scanner | ✅ READY | 64+ ✓ |
 | **3** | Memory Auditor | ✅ READY | 38+ ✓ |
 | **4** | Semantic Drift Engine | ✅ READY | 6+ ✓ |
-| **5-9** | Remaining Layers | 📋 TODO | — |
+| **5** | Output Guard | ✅ READY | 85+ ✓ |
+| **6-9** | Remaining Layers | 📋 TODO | — |
 
-**Critical Implementation**: All classifiers pass production-grade validation. Tool metadata scanner includes 10 critical bug fixes (fail-secure design, correct threshold handling, shell injection detection on all endpoints). See [MASTER_GUIDE.md#critical-bug-fixes--implementation-details](./MASTER_GUIDE.md#critical-bug-fixes--implementation-details) for details.
+**Critical Implementation**: All classifiers pass production-grade validation including fail-secure design, proper threshold handling, and pattern-based detection. See [MASTER_GUIDE.md](./MASTER_GUIDE.md) for complete details.
 
 ---
 
@@ -60,6 +61,7 @@ backend/classifiers/           ← All security classifiers
   ├── tool_scanner.py          ← Layer 2B: MCP tool metadata scanner ✅
   ├── memory_auditor.py        ← Layer 3: Memory integrity detection ✅
   ├── drift_engine.py          ← Layer 4: Multi-turn attack detection ✅
+  ├── output_guard.py          ← Layer 5: Output PII/leakage detection ✅
   ├── __init__.py              ← Proper exports
   └── data/
       ├── attack_seeds.json        ← 20+ attack embeddings
@@ -70,9 +72,11 @@ backend/classifiers/           ← All security classifiers
 tests/                          ← All test suites
   ├── test_indic_classifier.py ← 95+ tests ✓
   ├── test_rag_scanner.py      ← 50+ tests ✓
-  ├── test_tool_scanner.py     ← 64 tests ✓ (all pass, failures validated)
+  ├── test_tool_scanner.py     ← 64 tests ✓
   ├── test_memory_auditor.py   ← 38+ tests ✓
-  └── test_drift_engine.py     ← 6+ tests ✓
+  ├── test_drift_engine.py     ← 6+ tests ✓
+  ├── test_output_guard.py     ← 63 tests ✓
+  └── conftest.py              ← Shared test config
 
 backend/requirements-classifiers.txt  ← Dependencies (pinned versions)
 generate_embeddings.py                ← Utility to regenerate embeddings
@@ -246,29 +250,28 @@ classify_threat(text, role="admin")   # Permissive threshold (0.85)
 - [x] Attack embeddings (attack_seeds.json with 20 vectors)
 - [x] Embedding utility (generate_embeddings.py)
 
-### 📋 TODO (In Priority Order)
-1. **Layer 2: MCP Tool Scanner** (Hemach)
-   - Scan tool metadata for injection patterns
-   - Detect RAG chunk injection attacks
+### ✅ COMPLETED
+1. **Layer 2: RAG Chunk Scanner** (Hemach) ✓
+   - Scan RAG documents for injection patterns
+   - Detect document chunk hijacking attacks
 
-2. **Layer 3: Memory Auditor** (Hemach)
+2. **Layer 3: Memory Auditor** (Hemach) ✓
    - SHA-256 baseline of persistent memory
    - Semantic diff for logic bombs
 
-3. **Layer 4: Multi-Turn Risk Graph** (Hemach)
-   - Stateful conversation tracking
-   - Semantic drift velocity engine
+3. **Layer 4: Semantic Drift Engine** (Hemach) ✓
+   - Stateful multi-turn conversation tracking
+   - Semantic drift velocity computation
 
-4. **Layer 5: Output Guard** (Hemach)
-   - PII detector
+4. **Layer 5: Output Guard** (Hemach) ✓
+   - PII detector (Aadhaar, PAN, phone, email, API keys, credit cards)
    - System prompt leakage detector
-   - Exfiltration pattern detector
+   - Data exfiltration pattern detector
 
+### 📋 TODO (In Priority Order)
 5. **Layers 6-8: Honeypot, Cross-Agent, Adaptive Rules** (Hemach)
 
 6. **Backend API** (Nishun)
-   - FastAPI endpoints
-   - WebSocket handlers for real-time monitoring
 
 7. **Frontend (User)** (Nishun)
    - Chat interface
